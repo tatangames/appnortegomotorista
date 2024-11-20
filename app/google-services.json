@@ -23,25 +23,6 @@
           "other_platform_oauth_client": []
         }
       }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:320858811986:android:78179d202cbb4ada4ff98b",
-        "android_client_info": {
-          "package_name": "com.santaananortemetapan.nortegomotorista"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBRC7DLyb6YW7fhCPtWgM7ohCAQOQbA3nI"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
     }
   ],
   "configuration_version": "1"
