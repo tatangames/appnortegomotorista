@@ -1,6 +1,18 @@
 <resources>
     <string name="app_name">Motorista</string>
     <string name="logo">Logo</string>
+    <string name="aceptar">Aceptar</string>
+    <string name="cancelar">Cancelar</string>
+    <string name="verificar">Verificar</string>
+    <string name="no">No</string>
+    <string name="si">Sí</string>
+    <string name="volver">Volver</string>
+    <string name="acceder">Acceder</string>
+    <string name="solicitudes">solicitudes</string>
+    <string name="cerrar_sesion">Cerrar Sesión</string>
+
+
+
 
 
 </resources>

@@ -25,9 +25,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
+import com.alcaldiasantaananorte.nortegomotorista.pantallas.principal.PrincipalScreen
+import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.auth
 import kotlinx.coroutines.delay
 
 class SplashApp : ComponentActivity() {
+
+    private lateinit var auth: FirebaseAuth
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -35,27 +42,33 @@ class SplashApp : ComponentActivity() {
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
         enableEdgeToEdge()
+
+        auth = Firebase.auth
         setContent {
             // INICIO DE APLICACION
-            AppNavigation()
+            AppNavigation(auth)
         }
     }
 }
 
 // *** RUTAS DE NAVEGACION ***
 @Composable
-fun AppNavigation() {
+fun AppNavigation(auth: FirebaseAuth) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = Routes.VistaSplash.route) {
 
-        composable(Routes.VistaSplash.route) { SplashScreen(navController) }
-        composable(Routes.VistaLogin.route) { LoginScreen(navController) }
+        composable(Routes.VistaSplash.route) { SplashScreen(navController, auth) }
+        composable(Routes.VistaLogin.route) { LoginScreen(navController, auth) }
+
+
+        composable(Routes.VistaPrincipal.route) { PrincipalScreen(navController) }
+
     }
 }
 
 @Composable
-fun SplashScreen(navController: NavHostController) {
+fun SplashScreen(navController: NavHostController, auth: FirebaseAuth) {
 
     val ctx = LocalContext.current
 
@@ -71,9 +84,18 @@ fun SplashScreen(navController: NavHostController) {
     LaunchedEffect(Unit) {
         delay(2000)
 
-        navController.navigate(Routes.VistaLogin.route) {
-            popUpTo(Routes.VistaSplash.route) { inclusive = true }
+        val currentUser = auth.currentUser
+        if(currentUser!= null){
+            navController.navigate(Routes.VistaPrincipal.route) {
+                popUpTo(Routes.VistaSplash.route) { inclusive = true }
+            }
         }
+        else{
+            navController.navigate(Routes.VistaLogin.route) {
+                popUpTo(Routes.VistaSplash.route) { inclusive = true }
+            }
+        }
+
     }
 
     Box(
