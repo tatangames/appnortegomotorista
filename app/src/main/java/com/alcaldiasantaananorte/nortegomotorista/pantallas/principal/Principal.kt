@@ -52,6 +52,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.navOptions
 import coil.compose.AsyncImage
@@ -63,6 +65,8 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.DrawerHeader
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.componentes.itemsMenu
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
+import com.alcaldiasantaananorte.nortegomotorista.permisos.RiderDashboard
+import com.alcaldiasantaananorte.nortegomotorista.permisos.RiderViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,86 +84,81 @@ fun PrincipalScreen(
     val versionLocal = getVersionName(ctx)
 
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet {
-                DrawerHeader()
-                DrawerBody(items = itemsMenu) { item ->
-                    when (item.id) {
-                        1 -> {
 
 
-                        }
-
-                        2 -> {
-                            // cerrar sesion
-                            showModalCerrarSesion = true
-                        }
-                    }
-
-                    scope.launch {
-                        drawerState.close()
-                    }
-                }
-            }
-        }
-    ) {
-
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            text = "Servicios",
-                            color = Color.White,
-                            fontWeight = FontWeight.Medium
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Filled.Menu, contentDescription = null, tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Gray,
-                        titleContentColor = Color.White,
-                        navigationIconContentColor = Color.White
-                    )
-                )
-            }
-        ) { innerPadding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                //  .statusBarsPadding()
-            ) {
+    RiderDashboard()
 
 
 
-            }
+    /* ModalNavigationDrawer(
+         drawerState = drawerState,
+         drawerContent = {
+             ModalDrawerSheet {
+                 DrawerHeader()
+                 DrawerBody(items = itemsMenu) { item ->
+                     when (item.id) {
+                         1 -> {
+                         }
+                     }
+                     scope.launch {
+                         drawerState.close()
+                     }
+                 }
+             }
+         }
+     ) {
 
-            if (showModalCerrarSesion) {
-                CustomModalCerrarSesion(showModalCerrarSesion,
-                    "Cerrar Sesión",
-                    onDismiss = { showModalCerrarSesion = false },
-                    onAccept = {
-                        scope.launch {
-
-                            // cerrar modal
-                            showModalCerrarSesion = false
-                            navigateToLogin(navController)
-                        }
-                    })
-            }
+         Scaffold(
+             topBar = {
+                 CenterAlignedTopAppBar(
+                     title = {
+                         Text(
+                             text = "Servicios",
+                             color = Color.White,
+                             fontWeight = FontWeight.Medium
+                         )
+                     },
+                     navigationIcon = {
+                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                             Icon(Icons.Filled.Menu, contentDescription = null, tint = Color.White)
+                         }
+                     },
+                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                         containerColor = Color.Gray,
+                         titleContentColor = Color.White,
+                         navigationIconContentColor = Color.White
+                     )
+                 )
+             }
+         ) { innerPadding ->
 
 
 
 
 
-        }
-    }
+
+
+
+             if (showModalCerrarSesion) {
+                 CustomModalCerrarSesion(showModalCerrarSesion,
+                     "Cerrar Sesión",
+                     onDismiss = { showModalCerrarSesion = false },
+                     onAccept = {
+                         scope.launch {
+
+                             // cerrar modal
+                             showModalCerrarSesion = false
+                             navigateToLogin(navController)
+                         }
+                     })
+             }
+
+
+
+
+
+         }
+     }*/
 }
 
 // redireccionar a vista login
