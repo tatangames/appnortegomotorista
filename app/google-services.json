@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "320858811986",
+    "project_id": "nortego-motorista",
+    "storage_bucket": "nortego-motorista.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320858811986:android:63d076f33fcef4044ff98b",
+        "android_client_info": {
+          "package_name": "com.alcaldiasantaananorte.nortegomotorista"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRC7DLyb6YW7fhCPtWgM7ohCAQOQbA3nI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:320858811986:android:78179d202cbb4ada4ff98b",
+        "android_client_info": {
+          "package_name": "com.santaananortemetapan.nortegomotorista"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRC7DLyb6YW7fhCPtWgM7ohCAQOQbA3nI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
