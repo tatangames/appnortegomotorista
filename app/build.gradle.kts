@@ -61,41 +61,53 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
 
-    implementation("androidx.navigation:navigation-compose:2.8.0")
+    // Navigation and Layout
+    implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
-    implementation("androidx.compose.material:material-icons-extended:1.7.2")
 
-    implementation("androidx.compose.ui:ui:1.7.2")
-    implementation("androidx.compose.ui:ui-tooling-preview:1.7.2")
-    implementation("androidx.compose.material:material:1.7.2")
+    // Compose UI Components
+    implementation("androidx.compose.material:material-icons-extended:1.6.3")
+    implementation("androidx.compose.ui:ui:1.6.3")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.6.3")
+    implementation("androidx.compose.material:material:1.6.3")
 
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
-    implementation("androidx.compose.runtime:runtime-livedata:1.7.2")
 
+    // Networking
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.retrofit2:adapter-rxjava3:2.9.0")
+    implementation("io.reactivex.rxjava3:rxjava:3.1.5")
+    implementation("io.reactivex.rxjava3:rxandroid:3.0.0")
+
+    // Lifecycle and Data
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.3")
     implementation("com.github.GrenderG:Toasty:1.5.2")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    implementation("androidx.compose.material3:material3:1.3.0")
-    implementation("androidx.compose.foundation:foundation:1.3.0")
-    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
+    // Material and Foundation
+    implementation("androidx.compose.material3:material3:1.2.1")
+    implementation("androidx.compose.foundation:foundation:1.6.3")
 
-    implementation("com.google.accompanist:accompanist-systemuicontroller:0.30.1")
+    // Navigation and UI Controllers
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
+    implementation("com.google.accompanist:accompanist-pager:0.32.0")
+    implementation("com.google.accompanist:accompanist-pager-indicators:0.32.0")
 
-    implementation("com.google.android.gms:play-services-auth:20.5.0")
+    // Google Services
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-location:21.1.0")
+
+    // Image Loading
     implementation("io.coil-kt:coil-compose:2.7.0")
-
-    implementation("com.google.android.gms:play-services-maps:19.0.0")
-
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-
-    implementation("com.google.android.gms:play-services-location:21.0.1")
-
 
     // Permissions and Utils
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("id.zelory:compressor:3.0.1")
     implementation("com.beust:klaxon:5.5")
-
 
     // Maps
     implementation("com.google.maps.android:maps-compose:4.3.3")

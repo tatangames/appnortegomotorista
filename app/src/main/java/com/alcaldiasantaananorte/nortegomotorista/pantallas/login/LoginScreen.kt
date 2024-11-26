@@ -43,8 +43,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +84,7 @@ import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorBlancoGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.Gray
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.Green
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ShapeButton
+import com.alcaldiasantaananorte.nortegomotorista.viewmodel.login.LoginViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -94,146 +97,58 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 
-
-
-
-
-
-
-
-
-
-
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun PhoneAuthScreen(navController: NavHostController) {
-    val auth = FirebaseAuth.getInstance()
-    var phoneNumber by remember { mutableStateOf("") }
-    var verificationId by remember { mutableStateOf<String?>(null) }
-    var smsCode by remember { mutableStateOf("") }
-    var isCodeSent by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf("") }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (!isCodeSent) {
-            TextField(
-                value = phoneNumber,
-                onValueChange = { phoneNumber = it },
-                label = { Text("Número de teléfono") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    sendVerificationCode(auth, phoneNumber) { id ->
-                        verificationId = id
-                        isCodeSent = true
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Enviar código")
-            }
-        } else {
-            TextField(
-                value = smsCode,
-                onValueChange = { smsCode = it },
-                label = { Text("Código SMS") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(
-                onClick = {
-                    verifyCode(auth, verificationId, smsCode) { success, errorMessage ->
-                        if (success) {
-                            message = "¡Autenticación exitosa!"
-                        } else {
-                            message = errorMessage ?: "Error desconocido"
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Verificar código")
-            }
-        }
-
-        if (message.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = message)
-        }
-    }
-}
-
-
-fun sendVerificationCode(
-    auth: FirebaseAuth,
-    phoneNumber: String,
-    onCodeSent: (String) -> Unit
-) {
-    val options = PhoneAuthOptions.newBuilder(auth)
-        .setPhoneNumber(phoneNumber)
-        .setTimeout(60L, TimeUnit.SECONDS)
-        .setActivity(Activity())
-        .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                // Autenticación automática (cuando es posible)
-            }
-
-            override fun onVerificationFailed(e: FirebaseException) {
-                // Manejar errores aquí
-            }
-
-            override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                onCodeSent(verificationId)
-            }
-        }).build()
-    PhoneAuthProvider.verifyPhoneNumber(options)
-}
-
-fun verifyCode(
-    auth: FirebaseAuth,
-    verificationId: String?,
-    code: String,
-    onResult: (Boolean, String?) -> Unit
-) {
-    val credential = PhoneAuthProvider.getCredential(verificationId ?: "", code)
-    auth.signInWithCredential(credential)
-        .addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                onResult(true, null)
-            } else {
-                onResult(false, task.exception?.message)
-            }
-        }
-}
-
-
-
-
-
-
-
-
-
-@Composable
-fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
+fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel) {
 
     val ctx = LocalContext.current
+    val isLoading by viewModel.isLoading.observeAsState(true)
     var telefono by remember { mutableStateOf("") }
     var txtFieldNumero by remember { mutableStateOf(telefono) }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    var isLoading by remember { mutableStateOf(false) }
-    var modalMensajeString by remember { mutableStateOf("") }
+    val resultado by viewModel.resultado.observeAsState()
+    val scope = rememberCoroutineScope() // Crea el alcance de coroutine
+
+    // MODAL 1 BOTON
     var showModal1Boton by remember { mutableStateOf(false) }
+    var modalMensajeString by remember { mutableStateOf("") }
+
+    // MODAL 2 BOTON
     var showModal2Boton by remember { mutableStateOf(false) }
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val smsPermission = Manifest.permission.RECEIVE_SMS
+    val permissionStateSMS= rememberPermissionState(permission = smsPermission)
+
+    LaunchedEffect(Unit) {
+        if (!permissionStateSMS.status.isGranted) {
+            permissionStateSMS.launchPermissionRequest()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            viewModel.obtenerTelefonoAutorizadosRX()
+        }
+    }
+
+    when {
+        permissionStateSMS.status.isGranted -> {
+            // Si el permiso está otorgado
+            //  Log.d("PERMISO", "permisio camara aceptado")
+        }
+        permissionStateSMS.status.shouldShowRationale -> {
+            // Si el usuario rechazó el permiso previamente
+            // Log.d("PERMISO", "necesitamos acceso a la camara para continuar")
+        }
+        else -> {
+            // Log.d("PERMISO", "esperando respuesta")
+        }
+    }
+
 
     Box(
         modifier = Modifier
@@ -253,7 +168,7 @@ fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
 
             // Imagen (logotipo)
             Image(
-                painter = painterResource(id = R.drawable.logofinal),
+                painter = painterResource(id = R.drawable.camion),
                 contentDescription = stringResource(id = R.string.logo),
                 modifier = Modifier.size(199.dp),
                 contentScale = ContentScale.Fit
@@ -261,7 +176,7 @@ fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
 
             Spacer(modifier = Modifier.height(30.dp))
 
-
+            // Texto (titulo)
             Text(
                 text = stringResource(id = R.string.app_name),
                 fontSize = 27.sp,
@@ -274,10 +189,9 @@ fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-
             BloqueTextFieldLogin(text = txtFieldNumero, onTextChanged = { newText ->
                 txtFieldNumero = newText
-                telefono = newText
+                //viewModel.setTelefono(newText)  // Actualiza el ViewModel
             })
 
             Spacer(modifier = Modifier.height(50.dp))
@@ -324,75 +238,57 @@ fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
             }
 
             Spacer(modifier = Modifier.height(100.dp))
+        }
 
+        if(showModal1Boton){
+            CustomModal1Boton(showModal1Boton, modalMensajeString, onDismiss = {showModal1Boton = false})
+        }
 
+        if (isLoading) {
+            LoadingModal(isLoading = isLoading)
+        }
 
-            if (isLoading) {
-                LoadingModal(isLoading = isLoading)
-            }
+        if(showModal2Boton){
+            CustomModal2Botones(
+                showDialog = true,
+                message = stringResource(id = R.string.verificar_numero_introducido, telefono),
+                onDismiss = { showModal2Boton = false },
+                onAccept = {
+                    showModal2Boton = false
 
-            if(showModal2Boton){
-                CustomModal2Botones(
-                    showDialog = true,
-                    message = stringResource(id = R.string.verificar_numero_introducido, telefono),
-                    onDismiss = { showModal2Boton = false },
-                    onAccept = {
-
-                        val areatel = "+503$telefono"
-
-                        showModal2Boton = false
-                        val options = PhoneAuthOptions.newBuilder(FirebaseAuth.getInstance())
-                            .setPhoneNumber(areatel) // Número de teléfono con prefijo (+503, +1, etc.)
-                            .setTimeout(60L, TimeUnit.SECONDS) // Tiempo de espera
-                            .setActivity(Activity()) // Actividad actual
-                            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                                    // Si la verificación se completa automáticamente (auto-retrieval)
-                                    FirebaseAuth.getInstance().signInWithCredential(credential)
-                                        .addOnCompleteListener { task ->
-                                            if (task.isSuccessful) {
-                                                // Usuario autenticado con éxito
-                                                Log.d("Auth FIREBASE", "Usuario autenticado correctamente")
-                                            } else {
-                                                Log.e("Auth FIREBASE", "Error al autenticar", task.exception)
-                                                CustomToasty(
-                                                    ctx,
-                                                    "Error al verificar",
-                                                    ToastType.ERROR
-                                                )
-                                            }
-                                        }
-                                }
-
-                                override fun onVerificationFailed(e: FirebaseException) {
-                                    // Error en la verificación
-                                    Log.e("Auth FIREBASE", "Verificación fallida: ${e.message}")
-                                    CustomToasty(
-                                        ctx,
-                                        "Error al verificar",
-                                        ToastType.ERROR
-                                    )
-                                }
-
-                                override fun onCodeSent(
-                                    verificationId: String,
-                                    token: PhoneAuthProvider.ForceResendingToken
-                                ) {
-                                    // Código enviado, guarda el `verificationId` para usarlo en la verificación manual
-                                    Log.d("Auth FIREBASE", "Código enviado: $verificationId")
-                                }
-                            })
-                            .build()
-                        PhoneAuthProvider.verifyPhoneNumber(options)
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(100.dp))
+                }
+            )
         }
     }
 
+    resultado?.getContentIfNotHandled()?.let { result ->
 
+        Log.d("RESULTADO", "${result.success}")
 
+        when (result.success) {
+
+            1 -> {
+
+                CustomToasty(ctx, "llegoo", ToastType.INFO)
+            }
+            else -> {
+                // Error, mostrar Toast
+                CustomToasty(ctx, stringResource(id = R.string.error_reintentar), ToastType.ERROR)
+            }
+        }
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -26,6 +26,7 @@ import androidx.navigation.compose.rememberNavController
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
 import com.alcaldiasantaananorte.nortegomotorista.pantallas.principal.PrincipalScreen
+import com.alcaldiasantaananorte.nortegomotorista.viewmodel.login.LoginViewModel
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
@@ -59,7 +60,7 @@ fun AppNavigation(auth: FirebaseAuth) {
     NavHost(navController = navController, startDestination = Routes.VistaSplash.route) {
 
         composable(Routes.VistaSplash.route) { SplashScreen(navController, auth) }
-        composable(Routes.VistaLogin.route) { PhoneAuthScreen(navController) }
+        composable(Routes.VistaLogin.route) { LoginScreen(navController, viewModel = LoginViewModel()) }
         composable(Routes.VistaPrincipal.route) { PrincipalScreen(navController) }
     }
 }
@@ -96,7 +97,7 @@ fun SplashScreen(navController: NavHostController, auth: FirebaseAuth) {
         contentAlignment = Alignment.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.logofinal), // Tu imagen aquí
+            painter = painterResource(id = R.drawable.camion), // Tu imagen aquí
             contentDescription = stringResource(id = R.string.logo),
             contentScale = ContentScale.Fit,
             modifier = Modifier.size(200.dp)
