@@ -60,7 +60,16 @@ fun AppNavigation(auth: FirebaseAuth) {
     NavHost(navController = navController, startDestination = Routes.VistaSplash.route) {
 
         composable(Routes.VistaSplash.route) { SplashScreen(navController, auth) }
-        composable(Routes.VistaLogin.route) { LoginScreen(navController, viewModel = LoginViewModel()) }
+        composable(Routes.VistaLogin.route) { LoginScreen(navController) }
+
+        composable(Routes.VistaVerificarNumero.route) { backStackEntry ->
+            val identificador = backStackEntry.arguments?.getString("identificador") ?: ""
+
+            VistaVerificarNumeroView(navController = navController, identificador = identificador)
+        }
+
+
+
         composable(Routes.VistaPrincipal.route) { PrincipalScreen(navController) }
     }
 }

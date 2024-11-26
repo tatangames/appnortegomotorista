@@ -18,7 +18,7 @@ object RetrofitBuilder {
 
     private var retrofit: Retrofit? = null
     private var apiService: ApiService? = null
-    private var authenticatedApiService: ApiService? = null
+   // private var authenticatedApiService: ApiService? = null
 
     fun getApiService(): ApiService {
         if (apiService == null) {
@@ -29,14 +29,14 @@ object RetrofitBuilder {
         return apiService!!
     }
 
-    fun getAuthenticatedApiService(token: String): ApiService {
+  /*  fun getAuthenticatedApiService(token: String): ApiService {
         if (authenticatedApiService == null) {
             val client = buildClientWithAuth(token)
             retrofit = buildRetrofit(client)
             authenticatedApiService = createService(ApiService::class.java)
         }
         return authenticatedApiService!!
-    }
+    }*/
 
     private fun buildClientNoAuth(): OkHttpClient {
         return OkHttpClient.Builder()
@@ -50,7 +50,7 @@ object RetrofitBuilder {
             .build()
     }
 
-    private fun buildClientWithAuth(token: String): OkHttpClient {
+    /*private fun buildClientWithAuth(token: String): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
@@ -62,7 +62,7 @@ object RetrofitBuilder {
                 chain.proceed(request)
             }
             .build()
-    }
+    }*/
 
     private fun buildRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()

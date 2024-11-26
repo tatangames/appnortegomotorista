@@ -4,12 +4,12 @@ import com.google.gson.annotations.SerializedName
 
 data class ModeloListaTelefonos(
     @SerializedName("success") val success: Int,
-    @SerializedName("telefono") val telefono: List<Telefono>,
+    @SerializedName("lista") val telefono: List<Telefono>,
 )
 
 data class Telefono(
     @SerializedName("id") val id: Int,
-    @SerializedName("telefono") val telefono: String?,
+    @SerializedName("numero") val telefono: String?,
 )
 
 
