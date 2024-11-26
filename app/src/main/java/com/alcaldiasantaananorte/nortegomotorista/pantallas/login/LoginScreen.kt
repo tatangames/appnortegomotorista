@@ -1,8 +1,10 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.login
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -52,6 +54,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -68,6 +71,7 @@ import androidx.navigation.compose.rememberNavController
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.componentes.BloqueTextFieldLogin
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomModal1Boton
+import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomModal2Botones
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomToasty
 import com.alcaldiasantaananorte.nortegomotorista.componentes.LoadingModal
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
@@ -82,24 +86,154 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
 import kotlinx.coroutines.delay
+import java.util.concurrent.TimeUnit
+
+
+
+
+
+
+
+
+
+
+
+
+@Composable
+fun PhoneAuthScreen(navController: NavHostController) {
+    val auth = FirebaseAuth.getInstance()
+    var phoneNumber by remember { mutableStateOf("") }
+    var verificationId by remember { mutableStateOf<String?>(null) }
+    var smsCode by remember { mutableStateOf("") }
+    var isCodeSent by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (!isCodeSent) {
+            TextField(
+                value = phoneNumber,
+                onValueChange = { phoneNumber = it },
+                label = { Text("Número de teléfono") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    sendVerificationCode(auth, phoneNumber) { id ->
+                        verificationId = id
+                        isCodeSent = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Enviar código")
+            }
+        } else {
+            TextField(
+                value = smsCode,
+                onValueChange = { smsCode = it },
+                label = { Text("Código SMS") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    verifyCode(auth, verificationId, smsCode) { success, errorMessage ->
+                        if (success) {
+                            message = "¡Autenticación exitosa!"
+                        } else {
+                            message = errorMessage ?: "Error desconocido"
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Verificar código")
+            }
+        }
+
+        if (message.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = message)
+        }
+    }
+}
+
+
+fun sendVerificationCode(
+    auth: FirebaseAuth,
+    phoneNumber: String,
+    onCodeSent: (String) -> Unit
+) {
+    val options = PhoneAuthOptions.newBuilder(auth)
+        .setPhoneNumber(phoneNumber)
+        .setTimeout(60L, TimeUnit.SECONDS)
+        .setActivity(Activity())
+        .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                // Autenticación automática (cuando es posible)
+            }
+
+            override fun onVerificationFailed(e: FirebaseException) {
+                // Manejar errores aquí
+            }
+
+            override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                onCodeSent(verificationId)
+            }
+        }).build()
+    PhoneAuthProvider.verifyPhoneNumber(options)
+}
+
+fun verifyCode(
+    auth: FirebaseAuth,
+    verificationId: String?,
+    code: String,
+    onResult: (Boolean, String?) -> Unit
+) {
+    val credential = PhoneAuthProvider.getCredential(verificationId ?: "", code)
+    auth.signInWithCredential(credential)
+        .addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                onResult(true, null)
+            } else {
+                onResult(false, task.exception?.message)
+            }
+        }
+}
+
+
+
+
+
+
+
 
 
 @Composable
 fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
 
     val ctx = LocalContext.current
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-
-
+    var telefono by remember { mutableStateOf("") }
+    var txtFieldNumero by remember { mutableStateOf(telefono) }
+    val keyboardController = LocalSoftwareKeyboardController.current
     var isLoading by remember { mutableStateOf(false) }
-
-
+    var modalMensajeString by remember { mutableStateOf("") }
+    var showModal1Boton by remember { mutableStateOf(false) }
+    var showModal2Boton by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -141,106 +275,34 @@ fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
             Spacer(modifier = Modifier.height(20.dp))
 
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Campo de texto para correo
-                TextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Correo") },
-                    placeholder = { Text("usuario@ejemplo.com") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Email, contentDescription = "Correo")
-                    }
-                )
-
-                // Campo de texto para contraseña
-                TextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Contraseña") },
-                    placeholder = { Text("Ingresa tu contraseña") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Lock, contentDescription = "Contraseña")
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
-                            )
-                        }
-                    }
-                )
-            }
-
+            BloqueTextFieldLogin(text = txtFieldNumero, onTextChanged = { newText ->
+                txtFieldNumero = newText
+                telefono = newText
+            })
 
             Spacer(modifier = Modifier.height(50.dp))
 
-            // Botón de login
+            // Botón de registro
             Button(
                 onClick = {
 
+                    keyboardController?.hide()
+
                     when {
-                        email.isBlank() -> {
-                            CustomToasty(ctx, "Correo es requerido", ToastType.ERROR)
+                        txtFieldNumero.isBlank() -> {
+                            modalMensajeString = ctx.getString(R.string.telefono_es_requerido)
+                            showModal1Boton = true
                         }
 
-                        password.isBlank() -> {
-                            CustomToasty(ctx, "Correo es requerido", ToastType.ERROR)
+                        txtFieldNumero.length < 8 -> { // VA SIN GUION
+                            modalMensajeString = ctx.getString(R.string.telefono_es_requerido)
+                            showModal1Boton = true
                         }
-
-                        password.length < 6 -> {
-                            CustomToasty(ctx, "Contraseña mínimo 6 caracteres", ToastType.ERROR)
-                        }
-
                         else -> {
-                            isLoading = true
-
-                            auth.signInWithEmailAndPassword(email, password)
-                                .addOnFailureListener { exception ->
-                                    isLoading = false
-                                    when (exception) {
-                                        is FirebaseAuthInvalidCredentialsException -> {
-                                            // Contraseña incorrecta
-
-                                            CustomToasty(ctx, "Credenciales incorrecta", ToastType.INFO)
-                                        }
-                                        is FirebaseAuthInvalidUserException -> {
-                                            // Usuario no registrado
-                                            CustomToasty(ctx, "Credenciales incorrecta", ToastType.INFO)
-                                        }
-                                    }
-                                }
-                                .addOnCompleteListener { task ->
-
-                                    isLoading = false
-
-                                    if (task.isSuccessful) {
-                                        val user = task.result?.user
-                                        // Inicio de sesión exitoso
-                                        CustomToasty(ctx, "inicio bien", ToastType.INFO)
-
-                                    } else {
-                                        val error = task.exception?.message
-                                        // Manejar error
-                                        CustomToasty(ctx, "Credenciales incorrecta", ToastType.INFO)
-                                    }
-                                }
+                            // abrir modal para mostrarle al usuario si el numero es correcto
+                            showModal2Boton = true
                         }
                     }
-
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -252,7 +314,7 @@ fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
                 ),
             ) {
                 Text(
-                    text = stringResource(id = R.string.acceder),
+                    text = stringResource(id = R.string.verificar),
                     fontSize = 18.sp,
                     style = TextStyle(
                         fontSize = 20.sp,
@@ -261,20 +323,73 @@ fun LoginScreen(navController: NavHostController, auth: FirebaseAuth) {
                 )
             }
 
+            Spacer(modifier = Modifier.height(100.dp))
+
+
+
             if (isLoading) {
                 LoadingModal(isLoading = isLoading)
-            } else {
-                Text("Iniciar Sesión")
+            }
+
+            if(showModal2Boton){
+                CustomModal2Botones(
+                    showDialog = true,
+                    message = stringResource(id = R.string.verificar_numero_introducido, telefono),
+                    onDismiss = { showModal2Boton = false },
+                    onAccept = {
+
+                        val areatel = "+503$telefono"
+
+                        showModal2Boton = false
+                        val options = PhoneAuthOptions.newBuilder(FirebaseAuth.getInstance())
+                            .setPhoneNumber(areatel) // Número de teléfono con prefijo (+503, +1, etc.)
+                            .setTimeout(60L, TimeUnit.SECONDS) // Tiempo de espera
+                            .setActivity(Activity()) // Actividad actual
+                            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                                    // Si la verificación se completa automáticamente (auto-retrieval)
+                                    FirebaseAuth.getInstance().signInWithCredential(credential)
+                                        .addOnCompleteListener { task ->
+                                            if (task.isSuccessful) {
+                                                // Usuario autenticado con éxito
+                                                Log.d("Auth FIREBASE", "Usuario autenticado correctamente")
+                                            } else {
+                                                Log.e("Auth FIREBASE", "Error al autenticar", task.exception)
+                                                CustomToasty(
+                                                    ctx,
+                                                    "Error al verificar",
+                                                    ToastType.ERROR
+                                                )
+                                            }
+                                        }
+                                }
+
+                                override fun onVerificationFailed(e: FirebaseException) {
+                                    // Error en la verificación
+                                    Log.e("Auth FIREBASE", "Verificación fallida: ${e.message}")
+                                    CustomToasty(
+                                        ctx,
+                                        "Error al verificar",
+                                        ToastType.ERROR
+                                    )
+                                }
+
+                                override fun onCodeSent(
+                                    verificationId: String,
+                                    token: PhoneAuthProvider.ForceResendingToken
+                                ) {
+                                    // Código enviado, guarda el `verificationId` para usarlo en la verificación manual
+                                    Log.d("Auth FIREBASE", "Código enviado: $verificationId")
+                                }
+                            })
+                            .build()
+                        PhoneAuthProvider.verifyPhoneNumber(options)
+                    }
+                )
             }
 
             Spacer(modifier = Modifier.height(100.dp))
         }
-
-
-
-
-
-
     }
 
 

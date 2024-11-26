@@ -72,7 +72,7 @@ fun BloqueTextFieldLogin(text: String, onTextChanged: (String) -> Unit) {
                     fontSize = 18.sp, // Tamaño del texto
                     fontWeight = FontWeight.Medium // Negrita
                 ),
-                placeholder = { Text(text = "correo") },
+                placeholder = { Text(text = "Teléfono") },
                 singleLine = true,
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = Color(0xFFF5F5F5),

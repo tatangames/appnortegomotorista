@@ -67,6 +67,7 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.itemsMenu
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
 import com.alcaldiasantaananorte.nortegomotorista.permisos.RiderDashboard
 import com.alcaldiasantaananorte.nortegomotorista.permisos.RiderViewModel
+import com.alcaldiasantaananorte.nortegomotorista.provider.AuthProvider
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +81,7 @@ fun PrincipalScreen(
     val scope = rememberCoroutineScope() // Crea el alcance de coroutine
     var imageUrls by remember { mutableStateOf(listOf<String>()) }
     var popNumeroBloqueado by remember { mutableStateOf(false) }
-
+    val authProvider = AuthProvider()
     val versionLocal = getVersionName(ctx)
 
 

@@ -1,8 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.google.gms.google.services)
-
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -61,11 +60,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.firebase.database)
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.firestore)
-    implementation(libs.firebase.messaging)
-
 
     implementation("androidx.navigation:navigation-compose:2.8.0")
     implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
@@ -89,16 +83,31 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-auth:20.5.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("com.google.accompanist:accompanist-permissions:0.36.0")
 
     implementation("com.google.android.gms:play-services-maps:19.0.0")
-    implementation("com.google.maps.android:maps-compose:2.15.0")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
     implementation("com.google.android.gms:play-services-location:21.0.1")
 
+
+    // Permissions and Utils
+    implementation("com.google.accompanist:accompanist-permissions:0.36.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("com.beust:klaxon:5.5")
+
+
+    // Maps
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.github.prabhat1707:EasyWayLocation:2.4")
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:33.6.0"))
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore")
+
+    implementation("com.github.imperiumlabs:GeoFirestore-Android:v1.5.0")
+    implementation("com.google.maps.android:android-maps-utils:2.3.0")
 
 
 

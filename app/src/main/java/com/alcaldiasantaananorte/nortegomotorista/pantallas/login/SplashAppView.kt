@@ -59,19 +59,13 @@ fun AppNavigation(auth: FirebaseAuth) {
     NavHost(navController = navController, startDestination = Routes.VistaSplash.route) {
 
         composable(Routes.VistaSplash.route) { SplashScreen(navController, auth) }
-        composable(Routes.VistaLogin.route) { LoginScreen(navController, auth) }
-
-
+        composable(Routes.VistaLogin.route) { PhoneAuthScreen(navController) }
         composable(Routes.VistaPrincipal.route) { PrincipalScreen(navController) }
-
     }
 }
 
 @Composable
 fun SplashScreen(navController: NavHostController, auth: FirebaseAuth) {
-
-    val ctx = LocalContext.current
-
 
     // Evitar que el usuario volver al splash con el botón atrás
     DisposableEffect(Unit) {
@@ -84,8 +78,7 @@ fun SplashScreen(navController: NavHostController, auth: FirebaseAuth) {
     LaunchedEffect(Unit) {
         delay(2000)
 
-        val currentUser = auth.currentUser
-        if(currentUser!= null){
+        if (auth.currentUser != null) {
             navController.navigate(Routes.VistaPrincipal.route) {
                 popUpTo(Routes.VistaSplash.route) { inclusive = true }
             }
@@ -95,7 +88,6 @@ fun SplashScreen(navController: NavHostController, auth: FirebaseAuth) {
                 popUpTo(Routes.VistaSplash.route) { inclusive = true }
             }
         }
-
     }
 
     Box(
