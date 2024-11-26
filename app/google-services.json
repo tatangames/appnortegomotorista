@@ -1,0 +1,86 @@
+{
+  "project_info": {
+    "project_number": "697812221943",
+    "project_id": "nortego-41cf5",
+    "storage_bucket": "nortego-41cf5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697812221943:android:5c4c1bffec6278ed51f8f2",
+        "android_client_info": {
+          "package_name": "com.alcaldiasantaananorte.nortegomotorista"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ4r7oK8HCQfKzSQrooFVeo48SbwpwcKQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697812221943:android:e45068f46e42b2e851f8f2",
+        "android_client_info": {
+          "package_name": "com.alcaldiasantaananorte.ubermotorista"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ4r7oK8HCQfKzSQrooFVeo48SbwpwcKQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697812221943:android:e2f62ed1df32c37551f8f2",
+        "android_client_info": {
+          "package_name": "com.santaananortemetapan.nortego"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ4r7oK8HCQfKzSQrooFVeo48SbwpwcKQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697812221943:android:e8ed76be044e47a151f8f2",
+        "android_client_info": {
+          "package_name": "com.santaananortemetapan.uberclone"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJ4r7oK8HCQfKzSQrooFVeo48SbwpwcKQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
