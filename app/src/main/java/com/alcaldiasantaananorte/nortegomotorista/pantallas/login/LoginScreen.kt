@@ -85,6 +85,7 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
     val keyboardController = LocalSoftwareKeyboardController.current
     val smsPermission = Manifest.permission.RECEIVE_SMS
     val permissionStateSMS= rememberPermissionState(permission = smsPermission)
+    var isLoadingFire by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!permissionStateSMS.status.isGranted) {
@@ -181,6 +182,8 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
 
                             if (numeroEncontrado) {
 
+                                isLoadingFire = true
+
                                 val areatel = "+503$telefono"
 
                                 val options = PhoneAuthOptions.newBuilder(FirebaseAuth.getInstance())
@@ -195,6 +198,8 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
                                         override fun onVerificationFailed(e: FirebaseException) {
                                             // Manejar error en el envío del código
                                             Log.e("Auth FIREBASE", "Error al enviar el código: ${e.message}")
+                                            isLoadingFire = false
+
                                             CustomToasty(
                                                 ctx,
                                                 "Error al enviar el código: ${e.message}",
@@ -208,6 +213,7 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
                                         ) {
                                             // Código enviado correctamente
                                             Log.d("Auth FIREBASE", "Código enviado correctamente: $verificationId")
+                                            isLoadingFire = false
 
                                             navController.navigate(Routes.VistaVerificarNumero.createRoute(verificationId))
                                         }
@@ -245,6 +251,11 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
 
         if(showModal1Boton){
             CustomModal1Boton(showModal1Boton, modalMensajeString, onDismiss = {showModal1Boton = false})
+        }
+
+
+        if(isLoadingFire){
+            LoadingModal(isLoading = isLoadingFire)
         }
 
         if (isLoading) {

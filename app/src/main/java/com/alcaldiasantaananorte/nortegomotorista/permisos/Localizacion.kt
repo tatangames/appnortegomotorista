@@ -1,12 +1,10 @@
 package com.alcaldiasantaananorte.nortegomotorista.permisos
 
 import android.Manifest
-import android.app.Activity
-import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
-import android.location.Location
-import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -19,14 +17,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.ActivityCompat
-import androidx.lifecycle.AndroidViewModel
+import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
@@ -38,134 +36,39 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
-
-
-class RiderViewModel(context: Context) {
-    private val fusedLocationClient: FusedLocationProviderClient =
-        LocationServices.getFusedLocationProviderClient(context)
-    private val firestore = Firebase.firestore
-    private val auth = Firebase.auth
-
-    var currentLocation by mutableStateOf(LatLng(0.0, 0.0))
-    var isOnline by mutableStateOf(false)
-    var availableRides by mutableStateOf(listOf<Ride>())
-
-    suspend fun updateLocation(location: LatLng) {
-        val userId = auth.currentUser?.uid ?: return
-
-        // Actualizar ubicación en Firestore
-        firestore.collection("riders")
-            .document(userId)
-            .update(mapOf(
-                "latitude" to location.latitude,
-                "longitude" to location.longitude,
-                "isOnline" to isOnline
-            ))
-    }
-
-    suspend fun fetchAvailableRides() {
-        val ridesSnapshot = firestore.collection("rides")
-            .whereEqualTo("status", "pending")
-            .get().await()
-
-        availableRides = ridesSnapshot.toObjects(Ride::class.java)
-    }
-
-    // Método para simular ubicación
-    fun simulateLocation() {
-        // Ejemplo de simulación en Ciudad de México
-        val locations = listOf(
-            LatLng(19.4326, -99.1332),  // Centro CDMX
-            LatLng(19.4361, -99.1675),  // Zona Santa Fe
-            LatLng(19.4500, -99.1200)   // Zona del Ángel
-        )
-
-        currentLocation = locations.random()
-    }
-}
-
-data class Ride(
-    val id: String = "",
-    val origin: LatLng = LatLng(0.0, 0.0),
-    val destination: LatLng = LatLng(0.0, 0.0),
-    val status: String = "pending"
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RiderDashboard() {
+fun SolicitarPermisosUbicacion(
+    onPermisosConcedidos: () -> Unit,
+    onPermisosDenegados: () -> Unit
+) {
     val context = LocalContext.current
-    val viewModel = remember { RiderViewModel(context) }
+    val permisoUbicacion = Manifest.permission.ACCESS_FINE_LOCATION
 
-    var showSimulationDialog by remember { mutableStateOf(false) }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Rider Dashboard") },
-                actions = {
-                    Switch(
-                        checked = viewModel.isOnline,
-                        onCheckedChange = {
-                            viewModel.isOnline = it
-                            // Lógica adicional de cambio de estado
-                        }
-                    )
-                }
-            )
+    // Manejo de resultados del permiso
+    val solicitudPermisos = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { concedido ->
+        if (concedido) {
+            onPermisosConcedidos()
+        } else {
+            onPermisosDenegados()
         }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(0.7f),
-                cameraPositionState = rememberCameraPositionState {
-                    position = CameraPosition.fromLatLngZoom(
-                        viewModel.currentLocation, 15f
-                    )
-                }
-            ) {
-                Marker(
-                    state = MarkerState(position = viewModel.currentLocation),
-                    title = "Mi Ubicación"
-                )
-            }
+    }
 
-            Button(onClick = { showSimulationDialog = true }) {
-                Text("Simular Ubicación")
-            }
+    // Verificar si el permiso ya está concedido
+    val permisosConcedidos = ContextCompat.checkSelfPermission(
+        context, permisoUbicacion
+    ) == PackageManager.PERMISSION_GRANTED
 
-            if (showSimulationDialog) {
-                AlertDialog(
-                    onDismissRequest = { showSimulationDialog = false },
-                    title = { Text("Simular Ubicación") },
-                    text = { Text("¿Deseas simular una nueva ubicación?") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            viewModel.simulateLocation()
-                            showSimulationDialog = false
-                        }) {
-                            Text("Simular")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showSimulationDialog = false }) {
-                            Text("Cancelar")
-                        }
-                    }
-                )
-            }
+    // Si los permisos aún no están concedidos, se solicita el permiso
+    if (!permisosConcedidos) {
+        LaunchedEffect(Unit) {
+            solicitudPermisos.launch(permisoUbicacion)
         }
+    } else {
+        onPermisosConcedidos()
     }
 }
 

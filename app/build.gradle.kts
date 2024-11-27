@@ -13,7 +13,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -83,6 +83,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.compose.runtime:runtime-livedata:1.6.3")
     implementation("com.github.GrenderG:Toasty:1.5.2")
+
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Material and Foundation

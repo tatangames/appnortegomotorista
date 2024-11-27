@@ -49,30 +49,23 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
 import com.alcaldiasantaananorte.nortegomotorista.provider.SMSReceiver
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import com.google.firebase.auth.PhoneAuthProvider
 
 @Composable
 fun VistaVerificarNumeroView(
     navController: NavHostController,
     identificador: String,
 ) {
+    val auth = FirebaseAuth.getInstance()
     var txtFieldCodigo by remember { mutableStateOf("") }
-    val countdownViewModel = remember { CountdownViewModel() }
     val ctx = LocalContext.current
 
     // Mensajes de error y éxito predefinidos usando stringResource
     val msgCodigoRequerido = stringResource(id = R.string.codigo_requerido)
-    val msgCodigoIncorrecto = stringResource(id = R.string.codigo_incorrecto)
 
-    // MODAL
-    var showModal1Boton by remember { mutableStateOf(false) }
-    var modalMensajeString by remember { mutableStateOf("") }
-
-    val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
-
-
-
 
     // Estructura del Scaffold
     Scaffold(
@@ -92,40 +85,54 @@ fun VistaVerificarNumeroView(
         ) {
             Spacer(modifier = Modifier.height(24.dp)) // Añade espacio adicional si es necesario
 
-           /* Text(
-                text = stringResource(R.string.codigo_mensaje, telefono),
+           Text(
+                text = stringResource(R.string.ingresar_codigo_firebase),
                 fontSize = 18.sp,
                 textAlign = TextAlign.Center
-            )*/
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            /*Image(
+            Image(
                 painter = painterResource(id = R.drawable.charla),
                 contentDescription = stringResource(id = R.string.logo),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(100.dp)
-            )*/
+            )
 
             Spacer(modifier = Modifier.height(35.dp))
 
             // Integrar el detector de SMS
-           /* SMSCodeDetector { detectedCode ->
+            SMSCodeDetector { detectedCode ->
                 txtFieldCodigo = detectedCode
-                viewModelCodigo.setCodigo(detectedCode)
-                verificarCampos(ctx, txtFieldCodigo, msgCodigoRequerido, viewModelCodigo)
             }
 
             OtpTextField(codigo = txtFieldCodigo,
                 onTextChanged = { newText ->
                 txtFieldCodigo = newText
-                viewModelCodigo.setCodigo(newText)
-            })*/
+            })
 
             Spacer(modifier = Modifier.height(35.dp))
 
             Button(
                 onClick = {
+
+                    // Verificar codigo
+                    keyboardController?.hide()
+                    if(verificarCampos(ctx, txtFieldCodigo, msgCodigoRequerido)){
+                        verifyCode(auth, identificador, txtFieldCodigo) { success, errorMessage ->
+                            if (success) {
+                                navController.navigate(Routes.VistaPrincipal.route) {
+                                    popUpTo(0) { // Esto elimina todas las vistas de la pila de navegación
+                                        inclusive = true // Asegura que ninguna pantalla anterior quede en la pila
+                                    }
+                                    launchSingleTop = true // Evita múltiples instancias de la misma vista
+                                }
+                            } else {
+                                CustomToasty(ctx, "Codigo incorrecto", ToastType.ERROR)
+                            }
+                        }
+                    }
 
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -140,33 +147,44 @@ fun VistaVerificarNumeroView(
             }
 
             Spacer(modifier = Modifier.height(35.dp))
-
-
-
-            if(showModal1Boton){
-                CustomModal1Boton(showModal1Boton, modalMensajeString, onDismiss = {showModal1Boton = false})
-            }
-
-
-
         }
     }
 }
 
-fun verificarCampos(ctx: Context, txtFieldCodigo: String){
+fun verificarCampos(ctx: Context, txtFieldCodigo: String, msgCodigoRequerido: String): Boolean{
     when {
         txtFieldCodigo.isBlank() -> {
-          //  CustomToasty(ctx, msgCodigoRequerido, ToastType.ERROR)
+            CustomToasty(ctx, msgCodigoRequerido, ToastType.ERROR)
+            return false
         }
 
         txtFieldCodigo.length < 6 -> {
-         //   CustomToasty(ctx, msgCodigoRequerido, ToastType.ERROR)
+            CustomToasty(ctx, msgCodigoRequerido, ToastType.ERROR)
+            return false
         }
 
         else -> {
-         //   viewModelCodigo.verificarCodigoRetrofit()
+            return true
         }
     }
+}
+
+
+fun verifyCode(
+    auth: FirebaseAuth,
+    verificationId: String?,
+    code: String,
+    onResult: (Boolean, String?) -> Unit
+) {
+    val credential = PhoneAuthProvider.getCredential(verificationId ?: "", code)
+    auth.signInWithCredential(credential)
+        .addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                onResult(true, null)
+            } else {
+                onResult(false, task.exception?.message)
+            }
+        }
 }
 
 @Composable

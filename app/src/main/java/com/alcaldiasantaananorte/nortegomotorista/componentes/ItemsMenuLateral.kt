@@ -1,13 +1,10 @@
 package com.alcaldiasantaananorte.nortegomotorista.componentes
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.RealEstateAgent
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.alcaldiasantaananorte.nortegomotorista.R
+import androidx.compose.material.icons.filled.Person
 
 sealed class ItemsMenuLateral(
     val icon: ImageVector,
@@ -15,8 +12,8 @@ sealed class ItemsMenuLateral(
     val id: Int
 ) {
     object ItemMenu1 : ItemsMenuLateral(
-        Icons.AutoMirrored.Filled.List,
-        R.string.solicitudes,
+        Icons.Filled.Person,
+        R.string.perfil,
         1
     )
 
