@@ -60,7 +60,6 @@ fun PrincipalScreen(
     var imageUrls by remember { mutableStateOf(listOf<String>()) }
     var popPermisoGPS by remember { mutableStateOf(false) }
 
-    val authProvider = AuthProvider()
 
     //  ES PARA VERIFICAR PERMISOS DE UBICACION CUANDO SE CARGUE LA PANTALLA
     SolicitarPermisosUbicacion(
@@ -144,7 +143,7 @@ fun PrincipalScreen(
                     onAccept = {
                         scope.launch {
                             // Llamamos a deletePreferences de manera segura dentro de una coroutine
-                            authProvider.cerrarSesion()
+                            //authProvider.cerrarSesion()
 
                             // cerrar modal
                             showModalCerrarSesion = false

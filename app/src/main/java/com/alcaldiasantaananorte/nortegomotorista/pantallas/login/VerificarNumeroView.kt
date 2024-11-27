@@ -119,6 +119,7 @@ fun VistaVerificarNumeroView(
 
                     // Verificar codigo
                     keyboardController?.hide()
+
                     if(verificarCampos(ctx, txtFieldCodigo, msgCodigoRequerido)){
                         verifyCode(auth, identificador, txtFieldCodigo) { success, errorMessage ->
                             if (success) {

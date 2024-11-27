@@ -122,9 +122,6 @@ dependencies {
     implementation("com.github.imperiumlabs:GeoFirestore-Android:v1.5.0")
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
 
-
-
-
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

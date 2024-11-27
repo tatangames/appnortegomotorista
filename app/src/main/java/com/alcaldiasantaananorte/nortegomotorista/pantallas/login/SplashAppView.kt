@@ -69,6 +69,15 @@ fun AppNavigation(auth: FirebaseAuth) {
         }
 
 
+        composable(Routes.VistaRegistro.route) { backStackEntry ->
+            val telefono = backStackEntry.arguments?.getString("telefono") ?: ""
+            val identificador = backStackEntry.arguments?.getString("identificador") ?: ""
+
+            RegistroScreen(navController = navController, telefono = telefono, identificador = identificador)
+        }
+
+
+
 
         composable(Routes.VistaPrincipal.route) { PrincipalScreen(navController) }
     }

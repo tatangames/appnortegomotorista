@@ -14,7 +14,7 @@ import retrofit2.http.Part
 interface ApiService {
 
     // LISTA DE NUMEROS AUTORIZADOS PARA LOGIN FIREBASE
-    @POST("app/numeros/motoristas")
+    @POST("app/verificar/motorista")
     @FormUrlEncoded
     fun modeloListaTelefonos(@Field("device") device: Int
                           ): Single<ModeloListaTelefonos>

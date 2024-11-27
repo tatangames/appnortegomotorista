@@ -50,6 +50,7 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomModal2Botone
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomToasty
 import com.alcaldiasantaananorte.nortegomotorista.componentes.LoadingModal
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
+import com.alcaldiasantaananorte.nortegomotorista.model.datos.Telefono
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorBlancoGob
@@ -63,6 +64,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
@@ -76,7 +78,9 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
     var telefono by remember { mutableStateOf("") }
     val resultado by viewModel.resultado.observeAsState()
     val scope = rememberCoroutineScope() // Crea el alcance de coroutine
-    var numerosServer by remember { mutableStateOf(listOf<String>()) }
+
+    var modeloLista by remember { mutableStateOf(listOf<Telefono>()) }
+
 
     // MODAL 1 BOTON
     var showModal1Boton by remember { mutableStateOf(false) }
@@ -86,6 +90,13 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
     val smsPermission = Manifest.permission.RECEIVE_SMS
     val permissionStateSMS= rememberPermissionState(permission = smsPermission)
     var isLoadingFire by remember { mutableStateOf(false) }
+
+
+    var verificationId by remember { mutableStateOf<String?>(null) }
+    var isCodeSent by remember { mutableStateOf(false) }
+    val auth = FirebaseAuth.getInstance()
+    var areaTelefono by remember { mutableStateOf("") }
+    var yaCargo by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         if (!permissionStateSMS.status.isGranted) {
@@ -177,52 +188,30 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
                         }
                         else -> {
 
-                            // verificar que este en los numeros permitidos iniciar sesion
-                            val numeroEncontrado = numerosServer.any { it.contains(telefono) }
+                            val telefonoEncontrado = modeloLista.find { it.telefono == telefono }
+                            var autorizado = false
 
-                            if (numeroEncontrado) {
+                            if (telefonoEncontrado != null) {
+                                autorizado = true
+                            }
 
-                                isLoadingFire = true
-
-                                val areatel = "+503$telefono"
-
-                                val options = PhoneAuthOptions.newBuilder(FirebaseAuth.getInstance())
-                                    .setPhoneNumber(areatel) // Número de teléfono con prefijo (+503, +1, etc.)
-                                    .setTimeout(60L, TimeUnit.SECONDS) // Tiempo de espera
-                                    .setActivity(Activity()) // Actividad actual
-                                    .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                                        override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                                            // Este método no es necesario para tu caso, puedes dejarlo vacío.
-                                        }
-
-                                        override fun onVerificationFailed(e: FirebaseException) {
-                                            // Manejar error en el envío del código
-                                            Log.e("Auth FIREBASE", "Error al enviar el código: ${e.message}")
-                                            isLoadingFire = false
-
-                                            CustomToasty(
-                                                ctx,
-                                                "Error al enviar el código: ${e.message}",
-                                                ToastType.ERROR
-                                            )
-                                        }
-
-                                        override fun onCodeSent(
-                                            verificationId: String,
-                                            token: PhoneAuthProvider.ForceResendingToken
-                                        ) {
-                                            // Código enviado correctamente
-                                            Log.d("Auth FIREBASE", "Código enviado correctamente: $verificationId")
-                                            isLoadingFire = false
-
-                                            navController.navigate(Routes.VistaVerificarNumero.createRoute(verificationId))
-                                        }
-                                    })
-                                    .build()
-
-                                PhoneAuthProvider.verifyPhoneNumber(options)
-                            } else {
+                            if(!autorizado){
                                 CustomToasty(ctx, "Número no autorizado", ToastType.ERROR)
+                                return@Button
+                            }
+
+                            isLoadingFire = true
+                            areaTelefono = "+503$telefono"
+
+                            // MANDAR CODIGO SIEMPRE YA QUE INICIARA SESION
+                            // YA SEA NUEVO REGISTRO O NO
+                            scope.launch {
+                                sendVerificationCode(auth, areaTelefono) { id ->
+                                    verificationId = id
+                                    isCodeSent = true
+                                    isLoadingFire = false
+                                    yaCargo = true
+                                }
                             }
                         }
                     }
@@ -249,10 +238,20 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
             Spacer(modifier = Modifier.height(100.dp))
         }
 
+        if(yaCargo){
+            yaCargo = false
+            if(isCodeSent){
+                CustomToasty(ctx, stringResource(id = R.string.codigo_enviado), ToastType.INFO)
+                navController.navigate(Routes.VistaVerificarNumero.createRoute(verificationId ?: ""))
+            }else{
+                CustomToasty(ctx, stringResource(id = R.string.error_enviar_sms), ToastType.ERROR)
+            }
+        }
+
+
         if(showModal1Boton){
             CustomModal1Boton(showModal1Boton, modalMensajeString, onDismiss = {showModal1Boton = false})
         }
-
 
         if(isLoadingFire){
             LoadingModal(isLoading = isLoadingFire)
@@ -266,11 +265,8 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
     resultado?.getContentIfNotHandled()?.let { result ->
 
         when (result.success) {
-
             1 -> {
-                numerosServer = result.telefono.map { telItem ->
-                    "${telItem.telefono}"
-                }
+                modeloLista = result.listado
             }
             else -> {
                 // Error, mostrar Toast
@@ -281,17 +277,39 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
 }
 
 
-fun cambio(){
 
+suspend fun sendVerificationCode(
+    auth: FirebaseAuth,
+    phoneNumber: String,
+    onCodeSent: (String) -> Unit
+): Boolean {
+    val result = CompletableDeferred<Boolean>()
+
+    val options = PhoneAuthOptions.newBuilder(auth)
+        .setPhoneNumber(phoneNumber)
+        .setTimeout(60L, TimeUnit.SECONDS)
+        .setActivity(Activity())
+        .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                // Autenticación automática exitosa
+                result.complete(false)
+            }
+
+            override fun onVerificationFailed(e: FirebaseException) {
+                // Manejar error y retornar false
+                result.complete(false)
+            }
+
+            override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                // Código enviado exitosamente
+                onCodeSent(verificationId)
+                result.complete(true)
+            }
+        }).build()
+
+    PhoneAuthProvider.verifyPhoneNumber(options)
+    return result.await()
 }
-
-
-
-
-
-
-
-
 
 
 
