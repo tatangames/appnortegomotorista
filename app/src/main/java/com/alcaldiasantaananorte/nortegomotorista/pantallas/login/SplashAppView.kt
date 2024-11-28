@@ -65,15 +65,15 @@ fun AppNavigation(auth: FirebaseAuth) {
 
         composable(Routes.VistaVerificarNumero.route) { backStackEntry ->
             val identificador = backStackEntry.arguments?.getString("identificador") ?: ""
+            val telefono = backStackEntry.arguments?.getString("telefono") ?: ""
 
-            VistaVerificarNumeroView(navController = navController, identificador = identificador)
+            VistaVerificarNumeroView(navController = navController,
+                identificador = identificador,
+                telefono = telefono)
         }
 
-
         composable(Routes.VistaPrincipal.route) { PrincipalScreen(navController) }
-
         composable(Routes.VistaPerfil.route) { PerfilScreen(navController) }
-
     }
 }
 

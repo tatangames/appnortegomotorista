@@ -22,8 +22,10 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,14 +39,20 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomToasty
 import com.alcaldiasantaananorte.nortegomotorista.componentes.LoadingModal
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.provider.AuthProvider
+import com.alcaldiasantaananorte.nortegomotorista.utils.TokenManager
+import com.alcaldiasantaananorte.nortegomotorista.viewmodel.login.LoginViewModel
+import com.alcaldiasantaananorte.nortegomotorista.viewmodel.perfil.PerfilViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 data class Opcion(val id: Int, val nombre: String)
@@ -67,35 +75,38 @@ data class Driver(
 }
 
 @Composable
-fun PerfilScreen(navController: NavHostController){
+fun PerfilScreen(navController: NavHostController, viewModel: PerfilViewModel = viewModel()){
     val ctx = LocalContext.current
 
     // MODAL 1 BOTON
 
     val keyboardController = LocalSoftwareKeyboardController.current
-    var isLoadingFire by remember { mutableStateOf(true) }
-
-    // CUANDO YA ESTA REGISTRADO
     var nombre by remember { mutableStateOf("") }
     var descripcion by remember { mutableStateOf("") }
     var tipo by remember { mutableStateOf("") }
-
-    // CUANDO SERA NUEVO REGISTRO
     var nombreRegistro by remember { mutableStateOf(TextFieldValue()) }
     var descripcionRegistro by remember { mutableStateOf(TextFieldValue()) }
-
-
-
+    var isLoadingFire by remember { mutableStateOf(true) }
     var pantallaCargada by remember { mutableStateOf(false) }
-
     var driver by remember { mutableStateOf<Driver?>(null) }
     val db = FirebaseFirestore.getInstance()
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val scope = rememberCoroutineScope()
+    val tokenManager = remember { TokenManager(ctx) }
+    var datosServidor by remember { mutableStateOf(false) }
+    var puedeActualizarBtn by remember { mutableStateOf(false) }
+    val resultado by viewModel.resultado.observeAsState()
 
+    LaunchedEffect(Unit) {
+        scope.launch {
+            val tel = tokenManager.telefonoToken.first()
+            viewModel.permisoMotorista(telefono = tel)
+        }
+    }
 
-    if (currentUserId != null) {
-
+    if (currentUserId != null && datosServidor) {
         // BUSCAR MI DRIVER DE LA BASE DE DATOS FIREBASE
+
         LaunchedEffect(Unit) {
             currentUserId.let { userId ->
                 val driverDoc = db.collection("Drivers").document(userId).get().await()
@@ -122,6 +133,13 @@ fun PerfilScreen(navController: NavHostController){
 
                 DriverProfile(driver = driver!!) { updatedNombre, updatedDescripcion, updateTipo,  ->
                     // Actualizar datos en Firestore
+
+                    keyboardController?.hide()
+
+                    if(!puedeActualizarBtn){
+                        CustomToasty(ctx, "No autorizado para Cambios", ToastType.ERROR)
+                        return@DriverProfile
+                    }
 
                     if(updatedNombre.isBlank()){
                         CustomToasty(ctx, "Nombre es requerido", ToastType.INFO)
@@ -167,6 +185,8 @@ fun PerfilScreen(navController: NavHostController){
                     onRegister = {
                         currentUserId.let {
 
+                            keyboardController?.hide()
+
                             if(nombreRegistro.text.isBlank()){
                                 CustomToasty(ctx, "Nombre es requerido", ToastType.INFO)
                                 return@let
@@ -207,12 +227,30 @@ fun PerfilScreen(navController: NavHostController){
                 )
             }
         }
+    }
 
+
+    resultado?.getContentIfNotHandled()?.let { result ->
+        when (result.success) {
+            1 -> {
+               // VERIFICAR SI HAY PERMISO MODIFICACION PERFIL
+                if(result.cambios == 1){
+                    puedeActualizarBtn = true
+                }
+
+                datosServidor = true
+            }
+            else -> {
+                // Error, mostrar Toast
+                CustomToasty(ctx, stringResource(id = R.string.error_reintentar), ToastType.ERROR)
+            }
+        }
     }
 
     if (isLoadingFire) {
         LoadingModal(isLoading = isLoadingFire)
     }
+
 }
 
 

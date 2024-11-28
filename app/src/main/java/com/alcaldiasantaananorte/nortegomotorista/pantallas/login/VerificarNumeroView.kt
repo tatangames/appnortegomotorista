@@ -48,6 +48,7 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomToasty
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
+import com.alcaldiasantaananorte.nortegomotorista.utils.TokenManager
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import com.google.firebase.auth.PhoneAuthProvider
@@ -56,10 +57,13 @@ import com.google.firebase.auth.PhoneAuthProvider
 fun VistaVerificarNumeroView(
     navController: NavHostController,
     identificador: String,
+    telefono: String,
 ) {
     val auth = FirebaseAuth.getInstance()
     var txtFieldCodigo by remember { mutableStateOf("") }
     val ctx = LocalContext.current
+    val tokenManager = remember { TokenManager(ctx) }
+    val scope = rememberCoroutineScope()
 
     // Mensajes de error y éxito predefinidos usando stringResource
     val msgCodigoRequerido = stringResource(id = R.string.codigo_requerido)
@@ -118,11 +122,18 @@ fun VistaVerificarNumeroView(
                     if(verificarCampos(ctx, txtFieldCodigo, msgCodigoRequerido)){
                         verifyCode(auth, identificador, txtFieldCodigo) { success, errorMessage ->
                             if (success) {
-                                navController.navigate(Routes.VistaPrincipal.route) {
-                                    popUpTo(0) { // Esto elimina todas las vistas de la pila de navegación
-                                        inclusive = true // Asegura que ninguna pantalla anterior quede en la pila
+
+                                // GUARDAR TELEFONO
+
+                                scope.launch {
+                                    tokenManager.saveTelefono(telefono)
+
+                                    navController.navigate(Routes.VistaPrincipal.route) {
+                                        popUpTo(0) { // Esto elimina todas las vistas de la pila de navegación
+                                            inclusive = true // Asegura que ninguna pantalla anterior quede en la pila
+                                        }
+                                        launchSingleTop = true // Evita múltiples instancias de la misma vista
                                     }
-                                    launchSingleTop = true // Evita múltiples instancias de la misma vista
                                 }
                             } else {
                                 CustomToasty(ctx, "Codigo incorrecto", ToastType.ERROR)

@@ -2,6 +2,12 @@ package com.alcaldiasantaananorte.nortegomotorista.model.datos
 
 import com.google.gson.annotations.SerializedName
 
+data class ModeloBasico(
+    @SerializedName("success") val success: Int,
+    @SerializedName("cambios") val cambios: Int,
+    @SerializedName("registrado") val registrado: Int
+)
+
 data class ModeloListaTelefonos(
     @SerializedName("success") val success: Int,
     @SerializedName("lista") val listado: List<Telefono>,

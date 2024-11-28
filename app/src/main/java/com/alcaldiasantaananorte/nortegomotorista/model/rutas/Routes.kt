@@ -4,13 +4,8 @@ sealed class Routes(val route: String){
     object VistaSplash: Routes("splash")
     object VistaLogin: Routes("login")
 
-    object VistaRegistro: Routes("registro/{telefono}/{identificador}") {
-        fun createRoute(telefono: String, identificador: String) = "registro/$telefono/$identificador"
-    }
-
-
-    object VistaVerificarNumero: Routes("verificarNumero/{identificador}") {
-        fun createRoute(identificador: String) = "verificarNumero/$identificador"
+    object VistaVerificarNumero: Routes("verificarNumero/{identificador}/{telefono}") {
+        fun createRoute(identificador: String, telefono: String) = "verificarNumero/$identificador/$telefono"
     }
 
     object VistaPrincipal: Routes("principal")

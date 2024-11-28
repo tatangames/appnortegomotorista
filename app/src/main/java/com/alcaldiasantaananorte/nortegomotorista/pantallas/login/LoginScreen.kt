@@ -87,12 +87,10 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
     // MODAL 1 BOTON
     var showModal1Boton by remember { mutableStateOf(false) }
     var modalMensajeString by remember { mutableStateOf("") }
-
     val keyboardController = LocalSoftwareKeyboardController.current
     val smsPermission = Manifest.permission.RECEIVE_SMS
     val permissionStateSMS= rememberPermissionState(permission = smsPermission)
     var isLoadingFire by remember { mutableStateOf(false) }
-
     var verificationId by remember { mutableStateOf<String?>(null) }
     var isCodeSent by remember { mutableStateOf(false) }
     val auth = FirebaseAuth.getInstance()
@@ -254,7 +252,7 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
             yaCargo = false
             if(isCodeSent){
                 CustomToasty(ctx, stringResource(id = R.string.codigo_enviado), ToastType.INFO)
-                navController.navigate(Routes.VistaVerificarNumero.createRoute(verificationId ?: ""))
+                navController.navigate(Routes.VistaVerificarNumero.createRoute(verificationId ?: "", telefono = telefono))
             }else{
                 CustomToasty(ctx, stringResource(id = R.string.error_enviar_sms), ToastType.ERROR)
             }

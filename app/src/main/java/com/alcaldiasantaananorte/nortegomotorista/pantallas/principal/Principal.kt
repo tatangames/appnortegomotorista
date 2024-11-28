@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,22 +25,31 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.navOptions
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomModalCerrarSesion
+import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomToasty
 import com.alcaldiasantaananorte.nortegomotorista.componentes.DrawerBody
 import com.alcaldiasantaananorte.nortegomotorista.componentes.DrawerHeader
+import com.alcaldiasantaananorte.nortegomotorista.componentes.LoadingModal
+import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.componentes.itemsMenu
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
 import com.alcaldiasantaananorte.nortegomotorista.permisos.SolicitarPermisosUbicacion
@@ -47,12 +57,16 @@ import com.alcaldiasantaananorte.nortegomotorista.provider.AuthProvider
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorBlancoGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorGris1Gob
+import com.alcaldiasantaananorte.nortegomotorista.utils.TokenManager
+import com.alcaldiasantaananorte.nortegomotorista.viewmodel.perfil.PerfilViewModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrincipalScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: PerfilViewModel = viewModel()
 ) {
     val ctx = LocalContext.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -60,7 +74,20 @@ fun PrincipalScreen(
     val scope = rememberCoroutineScope() // Crea el alcance de coroutine
     var popPermisoGPS by remember { mutableStateOf(false) }
     val authProvider = AuthProvider()
+    val tokenManager = remember { TokenManager(ctx) }
+    val isLoading by viewModel.isLoading.observeAsState(true)
+    val resultado by viewModel.resultado.observeAsState()
 
+    var boolServerCargado by remember { mutableStateOf(false) }
+    var boolPermisoServer by remember { mutableStateOf(false) }
+
+
+    LaunchedEffect(Unit) {
+        scope.launch {
+            val tel = tokenManager.telefonoToken.first()
+            viewModel.permisoMotorista(telefono = tel)
+        }
+    }
 
     //  ES PARA VERIFICAR PERMISOS DE UBICACION CUANDO SE CARGUE LA PANTALLA
     SolicitarPermisosUbicacion(
@@ -120,13 +147,16 @@ fun PrincipalScreen(
                     )
                 )
             }
-        ) { innerPadding ->
-            LazyColumn(
+        ) { paddingValues  ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(paddingValues), // Respeta el padding del Scaffold
+                contentAlignment = Alignment.Center
             ) {
 
+                if(boolServerCargado){
+                    if(boolPermisoServer){
 
 
 
@@ -137,22 +167,30 @@ fun PrincipalScreen(
 
 
 
-
-
+                    }else{
+                        Text(
+                            text = "Habilitar acceso en Servidor, cuando ya se haya creado un Perfil al Motorista",
+                            color = Color.Black,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp) // Padding a los lados
+                        )
+                    }
+                }
             }
+        }
 
-            if (showModalCerrarSesion) {
-                CustomModalCerrarSesion(showModalCerrarSesion,
-                    stringResource(R.string.cerrar_sesion),
-                    onDismiss = { showModalCerrarSesion = false },
-                    onAccept = {
-                        scope.launch {
-                            authProvider.cerrarSesion()
-                            showModalCerrarSesion = false
-                            navigateToLogin(navController)
-                        }
-                    })
-            }
+        if (showModalCerrarSesion) {
+            CustomModalCerrarSesion(showModalCerrarSesion,
+                stringResource(R.string.cerrar_sesion),
+                onDismiss = { showModalCerrarSesion = false },
+                onAccept = {
+                    scope.launch {
+                        authProvider.cerrarSesion()
+                        showModalCerrarSesion = false
+                        navigateToLogin(navController)
+                    }
+                })
         }
 
         if(popPermisoGPS){
@@ -188,6 +226,28 @@ fun PrincipalScreen(
                     }
                 }
             )
+        }
+
+        if (isLoading) {
+            LoadingModal(isLoading = isLoading)
+        }
+    }
+
+
+    resultado?.getContentIfNotHandled()?.let { result ->
+
+        when (result.success) {
+            1 -> {
+                boolServerCargado = true
+                if(result.registrado == 1){
+                    boolPermisoServer = true
+                }
+
+            }
+            else -> {
+                // Error, mostrar Toast
+                CustomToasty(ctx, stringResource(id = R.string.error_reintentar), ToastType.ERROR)
+            }
         }
     }
 }
