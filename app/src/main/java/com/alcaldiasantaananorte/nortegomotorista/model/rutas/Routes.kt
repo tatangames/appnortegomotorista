@@ -14,6 +14,6 @@ sealed class Routes(val route: String){
     }
 
     object VistaPrincipal: Routes("principal")
-
+    object VistaPerfil: Routes("perfil")
 
 }

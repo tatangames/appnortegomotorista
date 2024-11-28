@@ -25,6 +25,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
+import com.alcaldiasantaananorte.nortegomotorista.pantallas.principal.PerfilScreen
 import com.alcaldiasantaananorte.nortegomotorista.pantallas.principal.PrincipalScreen
 import com.alcaldiasantaananorte.nortegomotorista.viewmodel.login.LoginViewModel
 import com.google.firebase.Firebase
@@ -69,17 +70,10 @@ fun AppNavigation(auth: FirebaseAuth) {
         }
 
 
-        composable(Routes.VistaRegistro.route) { backStackEntry ->
-            val telefono = backStackEntry.arguments?.getString("telefono") ?: ""
-            val identificador = backStackEntry.arguments?.getString("identificador") ?: ""
-
-            RegistroScreen(navController = navController, telefono = telefono, identificador = identificador)
-        }
-
-
-
-
         composable(Routes.VistaPrincipal.route) { PrincipalScreen(navController) }
+
+        composable(Routes.VistaPerfil.route) { PerfilScreen(navController) }
+
     }
 }
 

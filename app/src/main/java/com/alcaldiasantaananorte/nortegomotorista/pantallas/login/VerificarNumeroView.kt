@@ -47,7 +47,6 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomModal1Boton
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomToasty
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
-import com.alcaldiasantaananorte.nortegomotorista.provider.SMSReceiver
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -102,10 +101,6 @@ fun VistaVerificarNumeroView(
 
             Spacer(modifier = Modifier.height(35.dp))
 
-            // Integrar el detector de SMS
-            SMSCodeDetector { detectedCode ->
-                txtFieldCodigo = detectedCode
-            }
 
             OtpTextField(codigo = txtFieldCodigo,
                 onTextChanged = { newText ->
@@ -188,24 +183,6 @@ fun verifyCode(
         }
 }
 
-@Composable
-fun SMSCodeDetector(onCodeDetected: (String) -> Unit) {
-    val context = LocalContext.current
-    val receiver = remember { SMSReceiver() }
-
-    DisposableEffect(context) {
-        val intentFilter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
-        context.registerReceiver(receiver, intentFilter)
-
-        receiver.onCodeReceived = { detectedCode ->
-            onCodeDetected(detectedCode)
-        }
-
-        onDispose {
-            context.unregisterReceiver(receiver)
-        }
-    }
-}
 
 
 

@@ -3,6 +3,7 @@ package com.alcaldiasantaananorte.nortegomotorista.pantallas.login
 import android.Manifest
 import android.app.Activity
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -69,6 +70,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 
 
+
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = viewModel()) {
@@ -91,12 +93,12 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
     val permissionStateSMS= rememberPermissionState(permission = smsPermission)
     var isLoadingFire by remember { mutableStateOf(false) }
 
-
     var verificationId by remember { mutableStateOf<String?>(null) }
     var isCodeSent by remember { mutableStateOf(false) }
     val auth = FirebaseAuth.getInstance()
     var areaTelefono by remember { mutableStateOf("") }
     var yaCargo by remember { mutableStateOf(false) }
+    val activity = ctx as? Activity
 
     LaunchedEffect(Unit) {
         if (!permissionStateSMS.status.isGranted) {
@@ -203,14 +205,24 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
                             isLoadingFire = true
                             areaTelefono = "+503$telefono"
 
-                            // MANDAR CODIGO SIEMPRE YA QUE INICIARA SESION
-                            // YA SEA NUEVO REGISTRO O NO
+
                             scope.launch {
-                                sendVerificationCode(auth, areaTelefono) { id ->
-                                    verificationId = id
+                                val info = sendVerificationCode(
+                                    auth = auth,
+                                    phoneNumber = areaTelefono,
+                                    onCodeSent = { id ->
+                                        verificationId = id
+                                    },
+                                    activity = activity?: ctx as Activity
+                                )
+                                if (info) {
+                                    yaCargo = true
                                     isCodeSent = true
                                     isLoadingFire = false
+                                } else {
                                     yaCargo = true
+                                    isCodeSent = false
+                                    isLoadingFire = false
                                 }
                             }
                         }
@@ -281,26 +293,30 @@ fun LoginScreen(navController: NavHostController, viewModel: LoginViewModel = vi
 suspend fun sendVerificationCode(
     auth: FirebaseAuth,
     phoneNumber: String,
-    onCodeSent: (String) -> Unit
+    onCodeSent: (String) -> Unit,
+    activity: Activity
 ): Boolean {
     val result = CompletableDeferred<Boolean>()
 
     val options = PhoneAuthOptions.newBuilder(auth)
         .setPhoneNumber(phoneNumber)
         .setTimeout(60L, TimeUnit.SECONDS)
-        .setActivity(Activity())
+        .setActivity(activity)
         .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                Log.d("VERIFICACION", "onVerificationCompleted:$credential")
                 // Autenticación automática exitosa
                 result.complete(false)
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
                 // Manejar error y retornar false
+                Log.d("VERIFICACION", "onVerificationFailed", e)
                 result.complete(false)
             }
 
             override fun onCodeSent(verificationId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                Log.d("VERIFICACION", "onCodeSent:$verificationId")
                 // Código enviado exitosamente
                 onCodeSent(verificationId)
                 result.complete(true)

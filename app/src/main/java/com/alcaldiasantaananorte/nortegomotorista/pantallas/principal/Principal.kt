@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavHostController
+import androidx.navigation.navOptions
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomModalCerrarSesion
 import com.alcaldiasantaananorte.nortegomotorista.componentes.DrawerBody
@@ -57,8 +58,8 @@ fun PrincipalScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     var showModalCerrarSesion by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope() // Crea el alcance de coroutine
-    var imageUrls by remember { mutableStateOf(listOf<String>()) }
     var popPermisoGPS by remember { mutableStateOf(false) }
+    val authProvider = AuthProvider()
 
 
     //  ES PARA VERIFICAR PERMISOS DE UBICACION CUANDO SE CARGUE LA PANTALLA
@@ -76,7 +77,11 @@ fun PrincipalScreen(
                     when (item.id) {
                         1 -> {
 
-
+                            navController.navigate(Routes.VistaPerfil.route) {
+                                navOptions {
+                                    launchSingleTop = true
+                                }
+                            }
                         }
 
                         2 -> {
@@ -142,12 +147,8 @@ fun PrincipalScreen(
                     onDismiss = { showModalCerrarSesion = false },
                     onAccept = {
                         scope.launch {
-                            // Llamamos a deletePreferences de manera segura dentro de una coroutine
-                            //authProvider.cerrarSesion()
-
-                            // cerrar modal
+                            authProvider.cerrarSesion()
                             showModalCerrarSesion = false
-
                             navigateToLogin(navController)
                         }
                     })
