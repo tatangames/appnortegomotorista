@@ -15,4 +15,9 @@ class AuthProvider {
     fun cerrarSesion() {
         auth.signOut()
     }
+
+
+    fun getId(): String {
+        return auth.currentUser?.uid ?: ""
+    }
 }

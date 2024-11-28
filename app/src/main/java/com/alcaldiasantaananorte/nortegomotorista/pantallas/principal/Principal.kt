@@ -1,10 +1,17 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.principal
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.location.Location
 import android.net.Uri
 import android.provider.Settings
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,6 +33,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.navOptions
@@ -54,11 +63,20 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.itemsMenu
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
 import com.alcaldiasantaananorte.nortegomotorista.permisos.SolicitarPermisosUbicacion
 import com.alcaldiasantaananorte.nortegomotorista.provider.AuthProvider
+import com.alcaldiasantaananorte.nortegomotorista.provider.GeoProvider
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorBlancoGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorGris1Gob
 import com.alcaldiasantaananorte.nortegomotorista.utils.TokenManager
 import com.alcaldiasantaananorte.nortegomotorista.viewmodel.perfil.PerfilViewModel
+import com.example.easywaylocation.EasyWayLocation
+import com.example.easywaylocation.Listener
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.Priority
+import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -270,5 +288,155 @@ private fun navigateToLogin(navController: NavHostController) {
         launchSingleTop = true // Asegura que no se creen múltiples instancias de VistaLogin
     }
 }
+
+
+
+
+
+class LocationViewModel(
+    private val geoProvider: GeoProvider,
+    private val authProvider: AuthProvider,
+    private val easyWayLocation: EasyWayLocation
+) : ViewModel() {
+
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    private val _currentLocation = MutableStateFlow<LatLng?>(null)
+    val currentLocation: StateFlow<LatLng?> = _currentLocation.asStateFlow()
+
+    fun checkDriverConnection() {
+        geoProvider.getLocation(authProvider.getId()).addOnSuccessListener { document ->
+            _isConnected.value = document.exists() && document.contains("l")
+        }
+    }
+
+    fun connectDriver() {
+        easyWayLocation.startLocation()
+        _isConnected.value = true
+    }
+
+    fun disconnectDriver() {
+        easyWayLocation.endUpdates()
+        _currentLocation.value?.let { location ->
+            geoProvider.removeLocation(authProvider.getId())
+            _isConnected.value = false
+        }
+    }
+
+    fun saveLocation(location: LatLng) {
+        geoProvider.saveLocation(authProvider.getId(), location)
+        _currentLocation.value = location
+    }
+
+    fun handleLocationUpdate(location: Location) {
+        val newLocation = LatLng(location.latitude, location.longitude)
+        saveLocation(newLocation)
+    }
+}
+
+@Composable
+fun LocationTrackingScreen(
+    viewModel: LocationViewModel,
+    easyWayLocation: EasyWayLocation
+) {
+    val context = LocalContext.current
+    val isConnected by viewModel.isConnected.collectAsState()
+    val currentLocation by viewModel.currentLocation.collectAsState()
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+        when {
+            fineLocationGranted -> {
+                Log.d("LOCALIZACION", "Permiso aceptado")
+                viewModel.checkDriverConnection()
+            }
+            coarseLocationGranted -> {
+                Log.d("LOCALIZACION", "Permiso concedido con limitación")
+                viewModel.checkDriverConnection()
+            }
+            else -> {
+                Log.d("LOCALIZACION", "Permiso no aceptado")
+            }
+        }
+    }
+
+    // Simular configuración de EasyWayLocation similar al original
+    LaunchedEffect(Unit) {
+        val locationRequest = LocationRequest.create().apply {
+            interval = 0
+            fastestInterval = 0
+            priority = Priority.PRIORITY_HIGH_ACCURACY
+            smallestDisplacement = 1f
+        }
+
+       /* easyWayLocation.setLocationListener(object : Listener {
+            override fun currentLocation(location: Location) {
+                viewModel.handleLocationUpdate(location)
+            }
+
+            override fun locationOn() {}
+            override fun locationCancelled() {}
+        })*/
+
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Text(
+            text = if (isConnected) "Conectado" else "Desconectado",
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        currentLocation?.let { location ->
+            Text(
+                text = "Ubicación actual: ${location.latitude}, ${location.longitude}",
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
+        Row {
+            Button(
+                onClick = { viewModel.connectDriver() },
+                modifier = Modifier.padding(end = 8.dp),
+                enabled = !isConnected
+            ) {
+                Text("Conectar")
+            }
+
+            Button(
+                onClick = { viewModel.disconnectDriver() },
+                enabled = isConnected
+            ) {
+                Text("Desconectar")
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
