@@ -3,18 +3,24 @@ package com.alcaldiasantaananorte.nortegomotorista.pantallas.principal
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
+import android.os.Bundle
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
@@ -33,6 +39,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -48,6 +55,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.ActivityCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -71,14 +81,35 @@ import com.alcaldiasantaananorte.nortegomotorista.utils.TokenManager
 import com.alcaldiasantaananorte.nortegomotorista.viewmodel.perfil.PerfilViewModel
 import com.example.easywaylocation.EasyWayLocation
 import com.example.easywaylocation.Listener
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
+import com.google.firebase.firestore.SetOptions
+import com.google.maps.android.compose.CameraPositionState
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,7 +129,6 @@ fun PrincipalScreen(
 
     var boolServerCargado by remember { mutableStateOf(false) }
     var boolPermisoServer by remember { mutableStateOf(false) }
-
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -178,6 +208,10 @@ fun PrincipalScreen(
 
 
 
+                        val currentUserId = authProvider.getId()
+
+
+                        LocationTrackingScreen(authProvider = currentUserId)
 
 
 
@@ -256,11 +290,13 @@ fun PrincipalScreen(
 
         when (result.success) {
             1 -> {
+
+                Log.d("RESULTADO", result.toString())
+
                 boolServerCargado = true
                 if(result.registrado == 1){
                     boolPermisoServer = true
                 }
-
             }
             else -> {
                 // Error, mostrar Toast
@@ -293,71 +329,32 @@ private fun navigateToLogin(navController: NavHostController) {
 
 
 
-class LocationViewModel(
-    private val geoProvider: GeoProvider,
-    private val authProvider: AuthProvider,
-    private val easyWayLocation: EasyWayLocation
-) : ViewModel() {
 
-    private val _isConnected = MutableStateFlow(false)
-    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
-    private val _currentLocation = MutableStateFlow<LatLng?>(null)
-    val currentLocation: StateFlow<LatLng?> = _currentLocation.asStateFlow()
-
-    fun checkDriverConnection() {
-        geoProvider.getLocation(authProvider.getId()).addOnSuccessListener { document ->
-            _isConnected.value = document.exists() && document.contains("l")
-        }
-    }
-
-    fun connectDriver() {
-        easyWayLocation.startLocation()
-        _isConnected.value = true
-    }
-
-    fun disconnectDriver() {
-        easyWayLocation.endUpdates()
-        _currentLocation.value?.let { location ->
-            geoProvider.removeLocation(authProvider.getId())
-            _isConnected.value = false
-        }
-    }
-
-    fun saveLocation(location: LatLng) {
-        geoProvider.saveLocation(authProvider.getId(), location)
-        _currentLocation.value = location
-    }
-
-    fun handleLocationUpdate(location: Location) {
-        val newLocation = LatLng(location.latitude, location.longitude)
-        saveLocation(newLocation)
-    }
-}
+/*
 
 @Composable
-fun LocationTrackingScreen(
-    viewModel: LocationViewModel,
-    easyWayLocation: EasyWayLocation
+fun DriverLocationScreen(
+    geoProvider: GeoProvider,
+    authProvider: AuthProvider
 ) {
     val context = LocalContext.current
-    val isConnected by viewModel.isConnected.collectAsState()
-    val currentLocation by viewModel.currentLocation.collectAsState()
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    val isConnected = remember { mutableStateOf(false) }
+    val locationState = remember { mutableStateOf(LatLng(0.0, 0.0)) }
 
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
+    // Permisos de ubicación
+    val locationPermissions = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
-        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-
         when {
-            fineLocationGranted -> {
+            permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
                 Log.d("LOCALIZACION", "Permiso aceptado")
-                viewModel.checkDriverConnection()
+                checkIfDriverIsConnected(geoProvider, authProvider, isConnected)
             }
-            coarseLocationGranted -> {
+            permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                 Log.d("LOCALIZACION", "Permiso concedido con limitación")
-                viewModel.checkDriverConnection()
+                checkIfDriverIsConnected(geoProvider, authProvider, isConnected)
             }
             else -> {
                 Log.d("LOCALIZACION", "Permiso no aceptado")
@@ -365,65 +362,96 @@ fun LocationTrackingScreen(
         }
     }
 
-    // Simular configuración de EasyWayLocation similar al original
+    // Solicitar permisos al iniciar
     LaunchedEffect(Unit) {
-        val locationRequest = LocationRequest.create().apply {
-            interval = 0
-            fastestInterval = 0
-            priority = Priority.PRIORITY_HIGH_ACCURACY
-            smallestDisplacement = 1f
-        }
-
-       /* easyWayLocation.setLocationListener(object : Listener {
-            override fun currentLocation(location: Location) {
-                viewModel.handleLocationUpdate(location)
-            }
-
-            override fun locationOn() {}
-            override fun locationCancelled() {}
-        })*/
-
-        locationPermissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
+        locationPermissions.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         )
     }
 
+    // UI
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = if (isConnected) "Conectado" else "Desconectado",
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        currentLocation?.let { location ->
-            Text(
-                text = "Ubicación actual: ${location.latitude}, ${location.longitude}",
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-        }
-
-        Row {
-            Button(
-                onClick = { viewModel.connectDriver() },
-                modifier = Modifier.padding(end = 8.dp),
-                enabled = !isConnected
-            ) {
-                Text("Conectar")
+        Button(
+            onClick = {
+                if (isConnected.value) {
+                    disconnectDriver(geoProvider, authProvider, isConnected)
+                } else {
+                    connectDriver(fusedLocationClient, geoProvider, authProvider, locationState, isConnected, context)
+                }
             }
-
-            Button(
-                onClick = { viewModel.disconnectDriver() },
-                enabled = isConnected
-            ) {
-                Text("Desconectar")
-            }
+        ) {
+            Text(if (isConnected.value) "Desconectar" else "Conectar")
         }
+    }
+}
+
+private fun checkIfDriverIsConnected(
+    geoProvider: GeoProvider,
+    authProvider: AuthProvider,
+    isConnected: MutableState<Boolean>
+) {
+    geoProvider.getLocation(authProvider.getId()).addOnSuccessListener { document ->
+        if (document.exists() && document.contains("l")) {
+            isConnected.value = true
+        } else {
+            isConnected.value = false
+        }
+    }.addOnFailureListener {
+        Log.e("ERROR", "Error al obtener la ubicación", it)
+        isConnected.value = false
+    }
+}
+
+private fun connectDriver(
+    fusedLocationClient: FusedLocationProviderClient,
+    geoProvider: GeoProvider,
+    authProvider: AuthProvider,
+    locationState: MutableState<LatLng>,
+    isConnected: MutableState<Boolean>,
+    context: Context
+) {
+    if (ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        // TODO: Consider calling
+        //    ActivityCompat#requestPermissions
+        // here to request the missing permissions, and then overriding
+        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+        //                                          int[] grantResults)
+        // to handle the case where the user grants the permission. See the documentation
+        // for ActivityCompat#requestPermissions for more details.
+        return
+    }
+    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+        if (location != null) {
+            val latLng = LatLng(location.latitude, location.longitude)
+            locationState.value = latLng
+            geoProvider.saveLocation(authProvider.getId(), latLng)
+            isConnected.value = true
+        } else {
+            Log.e("ERROR", "No se pudo obtener la ubicación")
+        }
+    }
+}
+
+private fun disconnectDriver(
+    geoProvider: GeoProvider,
+    authProvider: AuthProvider,
+    isConnected: MutableState<Boolean>
+) {
+    geoProvider.removeLocation(authProvider.getId()).addOnSuccessListener {
+        isConnected.value = false
+    }.addOnFailureListener {
+        Log.e("ERROR", "Error al desconectar", it)
     }
 }
 
@@ -433,6 +461,229 @@ fun LocationTrackingScreen(
 
 
 
+@Composable
+fun MapScreen() {
+    val context = LocalContext.current
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+
+    // Para guardar la ubicación en Firebase
+    val userId = auth.currentUser?.uid ?: return
+    val locationState = remember { mutableStateOf(LatLng(0.0, 0.0)) }
+
+    // Solicitar permisos de ubicación
+    val locationPermissions = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+            getLastKnownLocation(fusedLocationClient, locationState, ctx = context)
+        }
+    }
+
+    // Comprobar permisos
+    LaunchedEffect(Unit) {
+        locationPermissions.launch(
+            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        )
+    }
+
+    // Mapa
+    GoogleMap(
+        modifier = Modifier.fillMaxSize(),
+        cameraPositionState = CameraPositionState(
+            position = CameraPosition.fromLatLngZoom(locationState.value, 15f)
+        )
+    ) {
+        Marker(
+            state = MarkerState(position = locationState.value),
+            title = "Mi Ubicación"
+        )
+    }
+
+    // Guardar ubicación en Firebase en tiempo real
+    LaunchedEffect(locationState.value) {
+        val locationData = mapOf(
+            "latitude" to locationState.value.latitude,
+            "longitude" to locationState.value.longitude
+        )
+        firestore.collection("Drivers").document(userId)
+            .set(locationData, SetOptions.merge())
+    }
+}
+
+
+
+private fun getLastKnownLocation(fusedLocationClient: FusedLocationProviderClient,
+                                 locationState: MutableState<LatLng>,
+                                 ctx: Context) {
+    if (ActivityCompat.checkSelfPermission(
+            ctx,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+            ctx,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        // TODO: Consider calling
+        //    ActivityCompat#requestPermissions
+        // here to request the missing permissions, and then overriding
+        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+        //                                          int[] grantResults)
+        // to handle the case where the user grants the permission. See the documentation
+        // for ActivityCompat#requestPermissions for more details.
+        return
+    }
+    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+        if (location != null) {
+            locationState.value = LatLng(location.latitude, location.longitude)
+        }
+    }
+}
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+class LocationManager(private val authProvider: String) {
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    private val _currentLocation = MutableStateFlow<LatLng?>(null)
+    val currentLocation: StateFlow<LatLng?> = _currentLocation.asStateFlow()
+
+    private val geoProvider = GeoProvider()
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var locationCallback: LocationCallback? = null
+
+    fun initLocationClient(context: Context) {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    suspend fun connectDriver(context: Context) {
+        try {
+            // Configura la solicitud de ubicación para permitir ubicaciones simuladas
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+                .setMinUpdateIntervalMillis(2000)
+                .build()
+
+            // Configura el callback para recibir actualizaciones de ubicación
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(locationResult: LocationResult) {
+                    locationResult.lastLocation?.let { location ->
+                        val latLng = LatLng(location.latitude, location.longitude)
+
+                        // Actualiza la ubicación actual
+                        _currentLocation.value = latLng
+
+                        // Guarda la ubicación en Firebase
+                        CoroutineScope(Dispatchers.IO).launch {
+                            geoProvider.saveLocation(authProvider, latLng)
+                        }
+                    }
+                }
+            }
+
+            // Solicita actualizaciones de ubicación
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback!!,
+                Looper.getMainLooper()
+            )
+
+            _isConnected.value = true
+        } catch (e: SecurityException) {
+            // Maneja errores de permisos
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun disconnectDriver() {
+        // Detiene las actualizaciones de ubicación
+        locationCallback?.let {
+            fusedLocationClient.removeLocationUpdates(it)
+        }
+
+        // Elimina la ubicación de Firebase
+        geoProvider.removeLocation(authProvider)
+
+        // Resetea los estados
+        _isConnected.value = false
+        _currentLocation.value = null
+    }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun LocationTrackingScreen(authProvider: String) {
+    val context = LocalContext.current
+    val locationManager = remember { LocationManager(authProvider) }
+
+    // Estado de permisos de ubicación
+    val locationPermission = rememberPermissionState(
+        Manifest.permission.ACCESS_FINE_LOCATION
+    )
+
+    // Estados de conexión y ubicación actual
+    val isConnected by locationManager.isConnected.collectAsState()
+    val currentLocation by locationManager.currentLocation.collectAsState()
+
+    // Inicializa el cliente de ubicación
+    LaunchedEffect(Unit) {
+        locationManager.initLocationClient(context)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        // Botón para solicitar permisos
+        if (!locationPermission.status.isGranted) {
+            Button(onClick = { locationPermission.launchPermissionRequest() }) {
+                Text("Solicitar Permiso de Ubicación")
+            }
+        }
+
+        // Botones de conexión/desconexión
+        if (locationPermission.status.isGranted) {
+            Button(
+                onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        if (!isConnected) {
+                            locationManager.connectDriver(context)
+                        } else {
+                            locationManager.disconnectDriver()
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (isConnected) "Desconectar" else "Conectar")
+            }
+
+            // Muestra la ubicación actual
+            currentLocation?.let { location ->
+                Text(
+                    "Ubicación Actual: ${location.latitude}, ${location.longitude}",
+                    modifier = Modifier.padding(top = 16.dp)
+                )
+            }
+        }
+    }
+}
 
 
 

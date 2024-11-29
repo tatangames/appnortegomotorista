@@ -17,8 +17,8 @@ class GeoProvider {
         geoFirestore.setLocation(idDriver, GeoPoint(position.latitude, position.longitude))
     }
 
-    fun removeLocation(idDriver: String){
-        collection.document(idDriver).delete()
+    fun removeLocation(idDriver: String): Task<Void> {
+        return collection.document(idDriver).delete()
     }
 
     fun getLocation(idDriver: String): Task<DocumentSnapshot> {
