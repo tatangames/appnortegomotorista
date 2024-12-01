@@ -231,6 +231,9 @@ fun PerfilScreen(navController: NavHostController, viewModel: PerfilViewModel = 
 
 
     resultado?.getContentIfNotHandled()?.let { result ->
+
+        Log.d("RESULTADO", result.toString())
+
         when (result.success) {
             1 -> {
                // VERIFICAR SI HAY PERMISO MODIFICACION PERFIL

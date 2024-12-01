@@ -6,6 +6,7 @@ import com.google.android.gms.tasks.Task
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
+import kotlinx.coroutines.tasks.await
 import org.imperiumlabs.geofirestore.GeoFirestore
 
 class GeoProvider {
@@ -24,6 +25,22 @@ class GeoProvider {
     fun getLocation(idDriver: String): Task<DocumentSnapshot> {
         return collection.document(idDriver).get().addOnFailureListener { exception ->
             Log.d("FIREBASE", "ERROR: ${exception.toString()}")
+        }
+    }
+
+
+    suspend fun checkLocationExists(driverId: String): Boolean {
+        return try {
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("Locations")
+                .document(driverId)
+                .get()
+                .await()
+
+            snapshot.exists()
+        } catch (e: Exception) {
+            Log.e("GeoProvider", "Error checking location existence", e)
+            false
         }
     }
 

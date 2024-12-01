@@ -1,12 +1,19 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.principal
 
 import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
@@ -21,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
@@ -31,6 +39,7 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
@@ -57,6 +66,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -109,7 +120,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,7 +188,7 @@ fun PrincipalScreen(
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            stringResource(R.string.mapa),
+                            stringResource(R.string.ubicacion),
                             color = Color.White,
                             fontWeight = FontWeight.Medium
                         )
@@ -207,16 +217,7 @@ fun PrincipalScreen(
                     if(boolPermisoServer){
 
 
-
-                        val currentUserId = authProvider.getId()
-
-
-                        LocationTrackingScreen(authProvider = currentUserId)
-
-
-
-
-
+                        LocationTrackingScreen(authProvider)
 
 
                     }else{
@@ -326,236 +327,6 @@ private fun navigateToLogin(navController: NavHostController) {
 }
 
 
-
-
-
-
-
-/*
-
-@Composable
-fun DriverLocationScreen(
-    geoProvider: GeoProvider,
-    authProvider: AuthProvider
-) {
-    val context = LocalContext.current
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-    val isConnected = remember { mutableStateOf(false) }
-    val locationState = remember { mutableStateOf(LatLng(0.0, 0.0)) }
-
-    // Permisos de ubicación
-    val locationPermissions = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        when {
-            permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
-                Log.d("LOCALIZACION", "Permiso aceptado")
-                checkIfDriverIsConnected(geoProvider, authProvider, isConnected)
-            }
-            permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
-                Log.d("LOCALIZACION", "Permiso concedido con limitación")
-                checkIfDriverIsConnected(geoProvider, authProvider, isConnected)
-            }
-            else -> {
-                Log.d("LOCALIZACION", "Permiso no aceptado")
-            }
-        }
-    }
-
-    // Solicitar permisos al iniciar
-    LaunchedEffect(Unit) {
-        locationPermissions.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        )
-    }
-
-    // UI
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Button(
-            onClick = {
-                if (isConnected.value) {
-                    disconnectDriver(geoProvider, authProvider, isConnected)
-                } else {
-                    connectDriver(fusedLocationClient, geoProvider, authProvider, locationState, isConnected, context)
-                }
-            }
-        ) {
-            Text(if (isConnected.value) "Desconectar" else "Conectar")
-        }
-    }
-}
-
-private fun checkIfDriverIsConnected(
-    geoProvider: GeoProvider,
-    authProvider: AuthProvider,
-    isConnected: MutableState<Boolean>
-) {
-    geoProvider.getLocation(authProvider.getId()).addOnSuccessListener { document ->
-        if (document.exists() && document.contains("l")) {
-            isConnected.value = true
-        } else {
-            isConnected.value = false
-        }
-    }.addOnFailureListener {
-        Log.e("ERROR", "Error al obtener la ubicación", it)
-        isConnected.value = false
-    }
-}
-
-private fun connectDriver(
-    fusedLocationClient: FusedLocationProviderClient,
-    geoProvider: GeoProvider,
-    authProvider: AuthProvider,
-    locationState: MutableState<LatLng>,
-    isConnected: MutableState<Boolean>,
-    context: Context
-) {
-    if (ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        // TODO: Consider calling
-        //    ActivityCompat#requestPermissions
-        // here to request the missing permissions, and then overriding
-        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-        //                                          int[] grantResults)
-        // to handle the case where the user grants the permission. See the documentation
-        // for ActivityCompat#requestPermissions for more details.
-        return
-    }
-    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-        if (location != null) {
-            val latLng = LatLng(location.latitude, location.longitude)
-            locationState.value = latLng
-            geoProvider.saveLocation(authProvider.getId(), latLng)
-            isConnected.value = true
-        } else {
-            Log.e("ERROR", "No se pudo obtener la ubicación")
-        }
-    }
-}
-
-private fun disconnectDriver(
-    geoProvider: GeoProvider,
-    authProvider: AuthProvider,
-    isConnected: MutableState<Boolean>
-) {
-    geoProvider.removeLocation(authProvider.getId()).addOnSuccessListener {
-        isConnected.value = false
-    }.addOnFailureListener {
-        Log.e("ERROR", "Error al desconectar", it)
-    }
-}
-
-
-
-
-
-
-
-@Composable
-fun MapScreen() {
-    val context = LocalContext.current
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-    val auth = FirebaseAuth.getInstance()
-    val firestore = FirebaseFirestore.getInstance()
-
-    // Para guardar la ubicación en Firebase
-    val userId = auth.currentUser?.uid ?: return
-    val locationState = remember { mutableStateOf(LatLng(0.0, 0.0)) }
-
-    // Solicitar permisos de ubicación
-    val locationPermissions = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true) {
-            getLastKnownLocation(fusedLocationClient, locationState, ctx = context)
-        }
-    }
-
-    // Comprobar permisos
-    LaunchedEffect(Unit) {
-        locationPermissions.launch(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        )
-    }
-
-    // Mapa
-    GoogleMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraPositionState = CameraPositionState(
-            position = CameraPosition.fromLatLngZoom(locationState.value, 15f)
-        )
-    ) {
-        Marker(
-            state = MarkerState(position = locationState.value),
-            title = "Mi Ubicación"
-        )
-    }
-
-    // Guardar ubicación en Firebase en tiempo real
-    LaunchedEffect(locationState.value) {
-        val locationData = mapOf(
-            "latitude" to locationState.value.latitude,
-            "longitude" to locationState.value.longitude
-        )
-        firestore.collection("Drivers").document(userId)
-            .set(locationData, SetOptions.merge())
-    }
-}
-
-
-
-private fun getLastKnownLocation(fusedLocationClient: FusedLocationProviderClient,
-                                 locationState: MutableState<LatLng>,
-                                 ctx: Context) {
-    if (ActivityCompat.checkSelfPermission(
-            ctx,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-            ctx,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        ) != PackageManager.PERMISSION_GRANTED
-    ) {
-        // TODO: Consider calling
-        //    ActivityCompat#requestPermissions
-        // here to request the missing permissions, and then overriding
-        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-        //                                          int[] grantResults)
-        // to handle the case where the user grants the permission. See the documentation
-        // for ActivityCompat#requestPermissions for more details.
-        return
-    }
-    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-        if (location != null) {
-            locationState.value = LatLng(location.latitude, location.longitude)
-        }
-    }
-}
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
 class LocationManager(private val authProvider: String) {
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
@@ -567,27 +338,39 @@ class LocationManager(private val authProvider: String) {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback? = null
 
+    // Add a method to check Firebase connection status
+    suspend fun checkConnectionStatus() {
+        try {
+            // Check if a location document exists for this driver in Firebase
+            val locationExists = geoProvider.checkLocationExists(authProvider)
+            _isConnected.value = locationExists
+        } catch (e: Exception) {
+            // Handle any errors in checking connection status
+            Log.e("LocationManager", "Error checking connection status", e)
+            _isConnected.value = false
+        }
+    }
+
     fun initLocationClient(context: Context) {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     }
 
-    suspend fun connectDriver(context: Context) {
+    fun connectDriver(context: Context) {
         try {
-            // Configura la solicitud de ubicación para permitir ubicaciones simuladas
+            // If already connected, do nothing
+            if (isConnected.value) return
+
             val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
                 .setMinUpdateIntervalMillis(2000)
                 .build()
 
-            // Configura el callback para recibir actualizaciones de ubicación
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(locationResult: LocationResult) {
                     locationResult.lastLocation?.let { location ->
                         val latLng = LatLng(location.latitude, location.longitude)
 
-                        // Actualiza la ubicación actual
                         _currentLocation.value = latLng
 
-                        // Guarda la ubicación en Firebase
                         CoroutineScope(Dispatchers.IO).launch {
                             geoProvider.saveLocation(authProvider, latLng)
                         }
@@ -595,7 +378,6 @@ class LocationManager(private val authProvider: String) {
                 }
             }
 
-            // Solicita actualizaciones de ubicación
             fusedLocationClient.requestLocationUpdates(
                 locationRequest,
                 locationCallback!!,
@@ -604,21 +386,17 @@ class LocationManager(private val authProvider: String) {
 
             _isConnected.value = true
         } catch (e: SecurityException) {
-            // Maneja errores de permisos
             e.printStackTrace()
         }
     }
 
-    suspend fun disconnectDriver() {
-        // Detiene las actualizaciones de ubicación
+    fun disconnectDriver() {
         locationCallback?.let {
             fusedLocationClient.removeLocationUpdates(it)
         }
 
-        // Elimina la ubicación de Firebase
         geoProvider.removeLocation(authProvider)
 
-        // Resetea los estados
         _isConnected.value = false
         _currentLocation.value = null
     }
@@ -626,9 +404,12 @@ class LocationManager(private val authProvider: String) {
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun LocationTrackingScreen(authProvider: String) {
+fun LocationTrackingScreen(authProvider: AuthProvider) {
+
+    val idauth =  authProvider.getId()
+
     val context = LocalContext.current
-    val locationManager = remember { LocationManager(authProvider) }
+    val locationManager = remember { LocationManager(idauth) }
 
     // Estado de permisos de ubicación
     val locationPermission = rememberPermissionState(
@@ -640,8 +421,24 @@ fun LocationTrackingScreen(authProvider: String) {
     val currentLocation by locationManager.currentLocation.collectAsState()
 
     // Inicializa el cliente de ubicación
+    // Check connection status when the screen is first loaded
     LaunchedEffect(Unit) {
         locationManager.initLocationClient(context)
+
+        // Check if already connected in Firebase
+        if (locationPermission.status.isGranted) {
+            locationManager.checkConnectionStatus()
+        }
+    }
+
+    // Función para iniciar el servicio de seguimiento
+    fun startLocationTrackingService() {
+        val serviceIntent = Intent(context, LocationTrackingService::class.java).apply {
+            putExtra("USER_ID", authProvider.getId())
+        }
+
+        // Para Android 8.0 (Oreo) y superior
+        context.startForegroundService(serviceIntent)
     }
 
     Column(
@@ -650,31 +447,36 @@ fun LocationTrackingScreen(authProvider: String) {
             .padding(16.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        // Botón para solicitar permisos
         if (!locationPermission.status.isGranted) {
             Button(onClick = { locationPermission.launchPermissionRequest() }) {
                 Text("Solicitar Permiso de Ubicación")
             }
         }
 
-        // Botones de conexión/desconexión
         if (locationPermission.status.isGranted) {
             Button(
                 onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
                         if (!isConnected) {
+                            startLocationTrackingService()
                             locationManager.connectDriver(context)
                         } else {
+                            context.stopService(Intent(context, LocationTrackingService::class.java))
                             locationManager.disconnectDriver()
                         }
                     }
                 },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isConnected) Color.Red else ColorAzulGob
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (isConnected) "Desconectar" else "Conectar")
+                Text(
+                    text = if (isConnected) "Desconectar" else "Conectar",
+                    fontSize = 18.sp // Cambia el tamaño de la fuente aquí
+                )
             }
 
-            // Muestra la ubicación actual
             currentLocation?.let { location ->
                 Text(
                     "Ubicación Actual: ${location.latitude}, ${location.longitude}",
@@ -687,7 +489,94 @@ fun LocationTrackingScreen(authProvider: String) {
 
 
 
+class LocationTrackingService : Service() {
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationCallback: LocationCallback
+    private val geoProvider = GeoProvider()
+    private lateinit var authProvider: String
+
+    override fun onCreate() {
+        super.onCreate()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Obtener el ID del usuario desde el intent
+        authProvider = intent?.getStringExtra("USER_ID") ?: return START_NOT_STICKY
+
+        // Crear una notificación para el servicio en primer plano
+        createNotification()
+
+        startLocationUpdates()
+
+        return START_STICKY
+    }
+
+    private fun createNotification() {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Crear canal de notificación para Android Oreo y superior
+
+            val channel = NotificationChannel(
+                "LOCATION_SERVICE_CHANNEL",
+                "Location Tracking",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            notificationManager.createNotificationChannel(channel)
 
 
+        val notification = NotificationCompat.Builder(this, "LOCATION_SERVICE_CHANNEL")
+            .setContentTitle("Tracking de Ubicación")
+            .setContentText("Seguimiento de ubicación activo")
+            .setSmallIcon(R.drawable.alerta) // Reemplaza con tu ícono
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
 
+        startForeground(1, notification)
+    }
+
+    private fun startLocationUpdates() {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+            .setMinUpdateIntervalMillis(2000)
+            .build()
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    val latLng = LatLng(location.latitude, location.longitude)
+
+                    // Guardar ubicación en Firebase en un scope de IO
+                    CoroutineScope(Dispatchers.IO).launch {
+                        geoProvider.saveLocation(authProvider, latLng)
+                    }
+                }
+            }
+        }
+
+        // Verificar permisos antes de solicitar actualizaciones
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        super.onDestroy()
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+
+        // Opcional: remover la ubicación de Firebase cuando el servicio se detiene
+        CoroutineScope(Dispatchers.IO).launch {
+            geoProvider.removeLocation(authProvider)
+        }
+    }
+}
 
