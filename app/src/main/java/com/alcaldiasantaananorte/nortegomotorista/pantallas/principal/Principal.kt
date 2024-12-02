@@ -302,7 +302,6 @@ class LocationManager(private val authProvider: String) {
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
     private val _currentLocation = MutableStateFlow<LatLng?>(null)
-    val currentLocation: StateFlow<LatLng?> = _currentLocation.asStateFlow()
 
     private val geoProvider = GeoProvider()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
