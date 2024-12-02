@@ -1,34 +1,23 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.principal
 
 import android.Manifest
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
@@ -39,7 +28,6 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
@@ -48,7 +36,6 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
@@ -64,12 +51,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.navOptions
@@ -90,11 +73,8 @@ import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorBlancoGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorGris1Gob
 import com.alcaldiasantaananorte.nortegomotorista.utils.TokenManager
 import com.alcaldiasantaananorte.nortegomotorista.viewmodel.perfil.PerfilViewModel
-import com.example.easywaylocation.EasyWayLocation
-import com.example.easywaylocation.Listener
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -102,17 +82,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.GeoPoint
-import com.google.firebase.firestore.SetOptions
-import com.google.maps.android.compose.CameraPositionState
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -418,18 +388,6 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
 
     // Estados de conexión y ubicación actual
     val isConnected by locationManager.isConnected.collectAsState()
-    val currentLocation by locationManager.currentLocation.collectAsState()
-
-    // Inicializa el cliente de ubicación
-    // Check connection status when the screen is first loaded
-    LaunchedEffect(Unit) {
-        locationManager.initLocationClient(context)
-
-        // Check if already connected in Firebase
-        if (locationPermission.status.isGranted) {
-            locationManager.checkConnectionStatus()
-        }
-    }
 
     // Función para iniciar el servicio de seguimiento
     fun startLocationTrackingService() {
@@ -439,6 +397,21 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
 
         // Para Android 8.0 (Oreo) y superior
         context.startForegroundService(serviceIntent)
+    }
+
+    // Inicializa el cliente de ubicación
+    // Check connection status when the screen is first loaded
+    LaunchedEffect(Unit) {
+        locationManager.initLocationClient(context)
+
+        // Check if already connected in Firebase
+        if (locationPermission.status.isGranted) {
+            locationManager.checkConnectionStatus()
+
+            if(isConnected){
+                startLocationTrackingService()
+            }
+        }
     }
 
     Column(
@@ -476,17 +449,9 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
                     fontSize = 18.sp // Cambia el tamaño de la fuente aquí
                 )
             }
-
-            currentLocation?.let { location ->
-                Text(
-                    "Ubicación Actual: ${location.latitude}, ${location.longitude}",
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-            }
         }
     }
 }
-
 
 
 class LocationTrackingService : Service() {
