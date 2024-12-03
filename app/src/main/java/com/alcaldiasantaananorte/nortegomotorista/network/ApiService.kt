@@ -1,4 +1,4 @@
-package com.alcaldiasantaananorte.nortegojetpackcompose.network
+package com.alcaldiasantaananorte.nortegomotorista.network
 
 
 import com.alcaldiasantaananorte.nortegomotorista.model.datos.ModeloBasico

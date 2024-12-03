@@ -1,5 +1,6 @@
 package com.alcaldiasantaananorte.nortegojetpackcompose.network
 
+import com.alcaldiasantaananorte.nortegomotorista.network.ApiService
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import retrofit2.Retrofit
@@ -9,12 +10,12 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitBuilder {
 
     //** SERVIDOR
-    //private const val BASE_URL = "http://145.223.120.223/api/"
-   // const val urlImagenes = "http://145.223.120.223/storage/archivos/"
+    private const val BASE_URL = "http://145.223.120.223/api/"
+    const val urlImagenes = "http://145.223.120.223/storage/archivos/"
 
     //** LOCAL
-    private const val BASE_URL = "http://192.168.1.29:8080/api/"
-    const val urlImagenes = "http://192.168.1.29:8080/storage/archivos/"
+   // private const val BASE_URL = "http://192.168.1.121:8080/api/"
+   // const val urlImagenes = "http://192.168.1.121:8080/storage/archivos/"
 
     private var retrofit: Retrofit? = null
     private var apiService: ApiService? = null

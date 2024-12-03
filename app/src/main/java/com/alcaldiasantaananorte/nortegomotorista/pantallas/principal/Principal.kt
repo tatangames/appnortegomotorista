@@ -1,6 +1,7 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.principal
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -65,7 +66,7 @@ import com.alcaldiasantaananorte.nortegomotorista.componentes.LoadingModal
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.componentes.itemsMenu
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes
-import com.alcaldiasantaananorte.nortegomotorista.permisos.SolicitarPermisosUbicacion
+import com.alcaldiasantaananorte.nortegomotorista.permisos.SolicitarPermisos
 import com.alcaldiasantaananorte.nortegomotorista.provider.AuthProvider
 import com.alcaldiasantaananorte.nortegomotorista.provider.GeoProvider
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
@@ -118,10 +119,13 @@ fun PrincipalScreen(
     }
 
     //  ES PARA VERIFICAR PERMISOS DE UBICACION CUANDO SE CARGUE LA PANTALLA
-    SolicitarPermisosUbicacion(
+    SolicitarPermisos(
         onPermisosConcedidos = { },
         onPermisosDenegados = { }
     )
+
+
+
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -459,15 +463,18 @@ class LocationTrackingService : Service() {
     private val geoProvider = GeoProvider()
     private lateinit var authProvider: String
 
+    private lateinit var notificationManager: NotificationManager
+
     override fun onCreate() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Obtener el ID del usuario desde el intent
         authProvider = intent?.getStringExtra("USER_ID") ?: return START_NOT_STICKY
-
+        startForeground(1, createNotification())
         // Crear una notificación para el servicio en primer plano
         createNotification()
 
@@ -476,7 +483,7 @@ class LocationTrackingService : Service() {
         return START_STICKY
     }
 
-    private fun createNotification() {
+    private fun createNotification(): Notification {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Crear canal de notificación para Android Oreo y superior
@@ -484,7 +491,7 @@ class LocationTrackingService : Service() {
         val channel = NotificationChannel(
             "LOCATION_SERVICE_CHANNEL",
             "Location Tracking",
-            NotificationManager.IMPORTANCE_LOW
+            NotificationManager.IMPORTANCE_LOW // Considera cambiar a IMPORTANCE_DEFAULT
         )
         notificationManager.createNotificationChannel(channel)
 
@@ -492,11 +499,14 @@ class LocationTrackingService : Service() {
         val notification = NotificationCompat.Builder(this, "LOCATION_SERVICE_CHANNEL")
             .setContentTitle("Tracking de Ubicación")
             .setContentText("Seguimiento de ubicación activo")
-            .setSmallIcon(R.drawable.alerta) // Reemplaza con tu ícono
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setSmallIcon(R.drawable.alerta)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT) // Cambia a DEFAULT o HIGH
+            .setOngoing(true) // Hace que la notificación sea persistente
             .build()
 
         startForeground(1, notification)
+
+        return notification
     }
 
     private fun startLocationUpdates() {
