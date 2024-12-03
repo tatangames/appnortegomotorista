@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -33,10 +33,17 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".pantallas.principal.LocationBackgroundService"
-            android:foregroundServiceType="location"
-            android:exported="false"/>
+
+        <receiver android:name=".pantallas.principal.RestartServiceReceiver"
+            android:enabled="true"
+            android:exported="false"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"

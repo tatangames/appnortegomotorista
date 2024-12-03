@@ -1,31 +1,22 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.principal
 
 import android.Manifest
-import android.app.Activity
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
 import android.net.Uri
-import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -37,7 +28,6 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
@@ -61,7 +51,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -100,7 +89,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,7 +110,6 @@ fun PrincipalScreen(
     var boolServerCargado by remember { mutableStateOf(false) }
     var boolPermisoServer by remember { mutableStateOf(false) }
 
-
     LaunchedEffect(Unit) {
         scope.launch {
             val tel = tokenManager.telefonoToken.first()
@@ -130,7 +117,7 @@ fun PrincipalScreen(
         }
     }
 
-    // ES PARA VERIFICAR PERMISOS DE UBICACION CUANDO SE CARGUE LA PANTALLA
+    //  ES PARA VERIFICAR PERMISOS DE UBICACION CUANDO SE CARGUE LA PANTALLA
     SolicitarPermisosUbicacion(
         onPermisosConcedidos = { },
         onPermisosDenegados = { }
@@ -144,7 +131,7 @@ fun PrincipalScreen(
                 DrawerBody(items = itemsMenu) { item ->
                     when (item.id) {
                         1 -> {
-                            // vista de perfil
+
                             navController.navigate(Routes.VistaPerfil.route) {
                                 navOptions {
                                     launchSingleTop = true
@@ -196,17 +183,11 @@ fun PrincipalScreen(
                 contentAlignment = Alignment.Center
             ) {
 
-                // Server cargado y permiso ya de ver pantalla
                 if(boolServerCargado){
                     if(boolPermisoServer){
 
 
-
-
-
-
-
-
+                        LocationTrackingScreen(authProvider)
 
 
                     }else{
@@ -275,10 +256,13 @@ fun PrincipalScreen(
         }
     }
 
+
     resultado?.getContentIfNotHandled()?.let { result ->
 
         when (result.success) {
             1 -> {
+
+                Log.d("RESULTADO", result.toString())
 
                 boolServerCargado = true
                 if(result.registrado == 1){
@@ -293,7 +277,7 @@ fun PrincipalScreen(
     }
 }
 
-// REDIRECCIONAR VISTA AJUSTES PARA PERMISOS
+
 fun redireccionarAjustes(context: Context){
     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
         data = Uri.fromParts("package", context.packageName, null)
@@ -302,7 +286,7 @@ fun redireccionarAjustes(context: Context){
 }
 
 
-// REDIRECCIONAR LOGIN - CERRAR SESION
+// redireccionar a vista login
 private fun navigateToLogin(navController: NavHostController) {
     navController.navigate(Routes.VistaLogin.route) {
         popUpTo(Routes.VistaPrincipal.route) {
@@ -313,4 +297,250 @@ private fun navigateToLogin(navController: NavHostController) {
 }
 
 
+class LocationManager(private val authProvider: String) {
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+
+    private val _currentLocation = MutableStateFlow<LatLng?>(null)
+
+    private val geoProvider = GeoProvider()
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var locationCallback: LocationCallback? = null
+
+    // Add a method to check Firebase connection status
+    suspend fun checkConnectionStatus() {
+        try {
+            // Check if a location document exists for this driver in Firebase
+            val locationExists = geoProvider.checkLocationExists(authProvider)
+            _isConnected.value = locationExists
+        } catch (e: Exception) {
+            // Handle any errors in checking connection status
+            Log.e("LocationManager", "Error checking connection status", e)
+            _isConnected.value = false
+        }
+    }
+
+    fun initLocationClient(context: Context) {
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    fun connectDriver(context: Context) {
+        try {
+            // If already connected, do nothing
+            if (isConnected.value) return
+
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+                .setMinUpdateIntervalMillis(2000)
+                .build()
+
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(locationResult: LocationResult) {
+                    locationResult.lastLocation?.let { location ->
+                        val latLng = LatLng(location.latitude, location.longitude)
+
+                        _currentLocation.value = latLng
+
+                        CoroutineScope(Dispatchers.IO).launch {
+                            geoProvider.saveLocation(authProvider, latLng)
+                        }
+                    }
+                }
+            }
+
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback!!,
+                Looper.getMainLooper()
+            )
+
+            _isConnected.value = true
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
+    }
+
+    fun disconnectDriver() {
+        locationCallback?.let {
+            fusedLocationClient.removeLocationUpdates(it)
+        }
+
+        geoProvider.removeLocation(authProvider)
+
+        _isConnected.value = false
+        _currentLocation.value = null
+    }
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun LocationTrackingScreen(authProvider: AuthProvider) {
+
+    val idauth =  authProvider.getId()
+
+    val context = LocalContext.current
+    val locationManager = remember { LocationManager(idauth) }
+
+    // Estado de permisos de ubicación
+    val locationPermission = rememberPermissionState(
+        Manifest.permission.ACCESS_FINE_LOCATION
+    )
+
+    // Estados de conexión y ubicación actual
+    val isConnected by locationManager.isConnected.collectAsState()
+
+    // Función para iniciar el servicio de seguimiento
+    fun startLocationTrackingService() {
+        val serviceIntent = Intent(context, LocationTrackingService::class.java).apply {
+            putExtra("USER_ID", authProvider.getId())
+        }
+
+        // Para Android 8.0 (Oreo) y superior
+        context.startForegroundService(serviceIntent)
+    }
+
+    // Inicializa el cliente de ubicación
+    // Check connection status when the screen is first loaded
+    LaunchedEffect(Unit) {
+        locationManager.initLocationClient(context)
+
+        // Check if already connected in Firebase
+        if (locationPermission.status.isGranted) {
+            locationManager.checkConnectionStatus()
+
+            if(isConnected){
+                startLocationTrackingService()
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (!locationPermission.status.isGranted) {
+            Button(onClick = { locationPermission.launchPermissionRequest() }) {
+                Text("Solicitar Permiso de Ubicación")
+            }
+        }
+
+        if (locationPermission.status.isGranted) {
+            Button(
+                onClick = {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        if (!isConnected) {
+                            startLocationTrackingService()
+                            locationManager.connectDriver(context)
+                        } else {
+                            context.stopService(Intent(context, LocationTrackingService::class.java))
+                            locationManager.disconnectDriver()
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isConnected) Color.Red else ColorAzulGob
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (isConnected) "Desconectar" else "Conectar",
+                    fontSize = 18.sp // Cambia el tamaño de la fuente aquí
+                )
+            }
+        }
+    }
+}
+
+
+class LocationTrackingService : Service() {
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationCallback: LocationCallback
+    private val geoProvider = GeoProvider()
+    private lateinit var authProvider: String
+
+    override fun onCreate() {
+        super.onCreate()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Obtener el ID del usuario desde el intent
+        authProvider = intent?.getStringExtra("USER_ID") ?: return START_NOT_STICKY
+
+        // Crear una notificación para el servicio en primer plano
+        createNotification()
+
+        startLocationUpdates()
+
+        return START_STICKY
+    }
+
+    private fun createNotification() {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // Crear canal de notificación para Android Oreo y superior
+
+        val channel = NotificationChannel(
+            "LOCATION_SERVICE_CHANNEL",
+            "Location Tracking",
+            NotificationManager.IMPORTANCE_LOW
+        )
+        notificationManager.createNotificationChannel(channel)
+
+
+        val notification = NotificationCompat.Builder(this, "LOCATION_SERVICE_CHANNEL")
+            .setContentTitle("Tracking de Ubicación")
+            .setContentText("Seguimiento de ubicación activo")
+            .setSmallIcon(R.drawable.alerta) // Reemplaza con tu ícono
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+
+        startForeground(1, notification)
+    }
+
+    private fun startLocationUpdates() {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+            .setMinUpdateIntervalMillis(2000)
+            .build()
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    val latLng = LatLng(location.latitude, location.longitude)
+
+                    // Guardar ubicación en Firebase en un scope de IO
+                    CoroutineScope(Dispatchers.IO).launch {
+                        geoProvider.saveLocation(authProvider, latLng)
+                    }
+                }
+            }
+        }
+
+        // Verificar permisos antes de solicitar actualizaciones
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onDestroy() {
+        super.onDestroy()
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+
+        // Opcional: remover la ubicación de Firebase cuando el servicio se detiene
+        CoroutineScope(Dispatchers.IO).launch {
+            geoProvider.removeLocation(authProvider)
+        }
+    }
+}
 
