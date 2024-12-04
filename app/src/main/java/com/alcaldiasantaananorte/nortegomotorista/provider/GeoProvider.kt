@@ -22,13 +22,6 @@ class GeoProvider {
         return collection.document(idDriver).delete()
     }
 
-    fun getLocation(idDriver: String): Task<DocumentSnapshot> {
-        return collection.document(idDriver).get().addOnFailureListener { exception ->
-            Log.d("FIREBASE", "ERROR: ${exception.toString()}")
-        }
-    }
-
-
     suspend fun checkLocationExists(driverId: String): Boolean {
         return try {
             val snapshot = FirebaseFirestore.getInstance()

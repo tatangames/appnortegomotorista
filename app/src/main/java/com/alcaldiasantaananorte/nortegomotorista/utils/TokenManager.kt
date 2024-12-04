@@ -18,14 +18,12 @@ class TokenManager(private val context: Context) {
     private val TEL_KEY = stringPreferencesKey("telefono")
 
 
-
     // Guardar token en DataStore
     suspend fun saveTelefono(token: String) {
         context.dataStore.edit { preferences ->
             preferences[TEL_KEY] = token
         }
     }
-
 
     // Obtener token desde DataStore
     val telefonoToken: Flow<String> = context.dataStore.data

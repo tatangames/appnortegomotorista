@@ -1,8 +1,6 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.login
 
 import android.content.Context
-import android.content.IntentFilter
-import android.provider.Telephony
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,8 +40,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavController
-import com.alcaldiasantaananorte.nortegomotorista.componentes.CountdownViewModel
-import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomModal1Boton
 import com.alcaldiasantaananorte.nortegomotorista.componentes.CustomToasty
 import com.alcaldiasantaananorte.nortegomotorista.componentes.ToastType
 import com.alcaldiasantaananorte.nortegomotorista.model.rutas.Routes

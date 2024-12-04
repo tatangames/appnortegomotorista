@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -125,8 +126,6 @@ fun PrincipalScreen(
     )
 
 
-
-
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -170,6 +169,11 @@ fun PrincipalScreen(
                     navigationIcon = {
                         IconButton(onClick = { scope.launch { drawerState.open() } }) {
                             Icon(Icons.Filled.Menu, contentDescription = null, tint = Color.White)
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { redireccionarAjustes(ctx) }) {
+                            Icon(Icons.Filled.Settings, contentDescription = "Configuración", tint = Color.White)
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -497,9 +501,9 @@ class LocationTrackingService : Service() {
 
 
         val notification = NotificationCompat.Builder(this, "LOCATION_SERVICE_CHANNEL")
-            .setContentTitle("Tracking de Ubicación")
+            .setContentTitle("NORTEGO Ubicación")
             .setContentText("Seguimiento de ubicación activo")
-            .setSmallIcon(R.drawable.alerta)
+            .setSmallIcon(R.drawable.camion)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT) // Cambia a DEFAULT o HIGH
             .setOngoing(true) // Hace que la notificación sea persistente
             .build()

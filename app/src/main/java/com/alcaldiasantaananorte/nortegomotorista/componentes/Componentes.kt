@@ -1,12 +1,10 @@
 package com.alcaldiasantaananorte.nortegomotorista.componentes
 
 import android.content.Context
-import android.graphics.Bitmap
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,9 +17,13 @@ import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Checkbox
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.CheckboxDefaults
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.CircularProgressIndicator
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -41,20 +43,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.alcaldiasantaananorte.nortegomotorista.R
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorAzulGob
 import com.alcaldiasantaananorte.nortegomotorista.ui.theme.ColorBlancoGob
@@ -362,41 +360,6 @@ fun CustomToasty(context: Context, message: String, type: ToastType) {
 }
 
 
-class CountdownViewModel : ViewModel() {
-    var timer by mutableStateOf(5)
-        private set
-
-    fun updateTimer(value: Int) {
-        timer = value
-    }
-
-    var isButtonEnabled by mutableStateOf(false)
-        private set
-
-    init {
-        startTimer()
-    }
-
-    // Función para iniciar el temporizador
-    private fun startTimer() {
-        viewModelScope.launch {
-            while (timer > 0) {
-                delay(1000L)
-                timer--
-            }
-            isButtonEnabled = true
-        }
-    }
-
-    // Función para reiniciar el temporizador
-    fun resetTimer() {
-        timer = 60 // defecto al reiniciar
-        isButtonEnabled = false
-        startTimer()
-    }
-}
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BarraToolbarColor(navController: NavController, titulo: String, backgroundColor: Color) {
@@ -444,7 +407,6 @@ fun BarraToolbarColor(navController: NavController, titulo: String, backgroundCo
             .requiredHeightIn(min = 56.dp) // Define una altura mínima
     )
 }
-
 
 
 @Composable

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
@@ -23,8 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -85,79 +82,4 @@ fun BloqueTextFieldLogin(text: String, onTextChanged: (String) -> Unit) {
             )
         }
     }
-}
-
-
-
-
-
-
-@Composable
-fun CustomTextFieldOpciones(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    maxLength: Int = Int.MAX_VALUE, // Por defecto no se limita la longitud
-    paddingTop: Dp = 0.dp,
-    modifier: Modifier = Modifier
-) {
-    TextField(
-        value = value,
-        onValueChange = {
-            if (it.length <= maxLength) {
-                onValueChange(it)
-            }
-        },
-        /* label = {
-             Text(
-                 text = label,
-                 fontSize = 15.sp,
-                 color = Color.Black,
-                 fontWeight = FontWeight.Normal
-             )
-         },*/
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = paddingTop),
-        textStyle = TextStyle(
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Normal
-        ),
-        placeholder = { Text(text = placeholder) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFFF5F5F5),
-            unfocusedContainerColor = Color(0xFFF5F5F5),
-            disabledContainerColor = Color(0xFFF5F5F5),
-            errorContainerColor = Color(0xFFF5F5F5),
-            focusedIndicatorColor = Color.Black,
-            unfocusedIndicatorColor = Color.Black,
-            focusedLabelColor = Color.Black,
-            unfocusedLabelColor = Color.Black
-        )
-    )
-}
-
-
-@Composable
-fun CustomTextSolicitud(
-    text: String,
-    fontSize: TextUnit = 18.sp,
-    color: Color = Color.Black,
-    fontWeight: FontWeight = FontWeight.Normal,
-    paddingTop: Dp = 30.dp,
-    paddingStart: Dp = 4.dp
-) {
-    Text(
-        text = text,
-        fontSize = fontSize,
-        color = color,
-        fontWeight = fontWeight,
-        modifier = Modifier
-            .padding(top = paddingTop, start = paddingStart) // Padding directamente en el Text
-            .fillMaxWidth()
-            .wrapContentWidth(Alignment.Start) // Alinear a la izquierda
-    )
 }
