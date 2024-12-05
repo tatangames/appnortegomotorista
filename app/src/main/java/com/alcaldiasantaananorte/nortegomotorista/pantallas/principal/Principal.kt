@@ -1,24 +1,30 @@
 package com.alcaldiasantaananorte.nortegomotorista.pantallas.principal
 
 import android.Manifest
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
@@ -85,6 +91,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.model.LatLng
+import com.google.firebase.auth.userProfileChangeRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -92,6 +99,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -193,10 +204,7 @@ fun PrincipalScreen(
 
                 if(boolServerCargado){
                     if(boolPermisoServer){
-
-
                         LocationTrackingScreen(authProvider)
-
 
                     }else{
                         Text(
@@ -305,78 +313,21 @@ private fun navigateToLogin(navController: NavHostController) {
 }
 
 
-class LocationManager(private val authProvider: String) {
-    private val _isConnected = MutableStateFlow(false)
-    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+class LocationManager {
 
-    private val _currentLocation = MutableStateFlow<LatLng?>(null)
-
-    private val geoProvider = GeoProvider()
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private var locationCallback: LocationCallback? = null
 
-    // Add a method to check Firebase connection status
-    suspend fun checkConnectionStatus() {
-        try {
-            // Check if a location document exists for this driver in Firebase
-            val locationExists = geoProvider.checkLocationExists(authProvider)
-            _isConnected.value = locationExists
-        } catch (e: Exception) {
-            // Handle any errors in checking connection status
-            Log.e("LocationManager", "Error checking connection status", e)
-            _isConnected.value = false
-        }
+    private val _isConnected = MutableStateFlow(false)
+    val isConnected: StateFlow<Boolean> get() = _isConnected
+
+    fun setConnectionStatus(status: Boolean) {
+        _isConnected.value = status
     }
 
     fun initLocationClient(context: Context) {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     }
 
-    fun connectDriver(context: Context) {
-        try {
-            // If already connected, do nothing
-            if (isConnected.value) return
-
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
-                .setMinUpdateIntervalMillis(2000)
-                .build()
-
-            locationCallback = object : LocationCallback() {
-                override fun onLocationResult(locationResult: LocationResult) {
-                    locationResult.lastLocation?.let { location ->
-                        val latLng = LatLng(location.latitude, location.longitude)
-
-                        _currentLocation.value = latLng
-
-                        CoroutineScope(Dispatchers.IO).launch {
-                            geoProvider.saveLocation(authProvider, latLng)
-                        }
-                    }
-                }
-            }
-
-            fusedLocationClient.requestLocationUpdates(
-                locationRequest,
-                locationCallback!!,
-                Looper.getMainLooper()
-            )
-
-            _isConnected.value = true
-        } catch (e: SecurityException) {
-            e.printStackTrace()
-        }
-    }
-
-    fun disconnectDriver() {
-        locationCallback?.let {
-            fusedLocationClient.removeLocationUpdates(it)
-        }
-
-        geoProvider.removeLocation(authProvider)
-
-        _isConnected.value = false
-        _currentLocation.value = null
-    }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -384,14 +335,15 @@ class LocationManager(private val authProvider: String) {
 fun LocationTrackingScreen(authProvider: AuthProvider) {
 
     val idauth =  authProvider.getId()
-
+    val geoProvider = GeoProvider()
     val context = LocalContext.current
-    val locationManager = remember { LocationManager(idauth) }
+    val locationManager = remember { LocationManager() }
 
     // Estado de permisos de ubicación
     val locationPermission = rememberPermissionState(
         Manifest.permission.ACCESS_FINE_LOCATION
     )
+    var isLoadingButton by remember { mutableStateOf(false) }
 
     // Estados de conexión y ubicación actual
     val isConnected by locationManager.isConnected.collectAsState()
@@ -411,12 +363,18 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
     LaunchedEffect(Unit) {
         locationManager.initLocationClient(context)
 
-        // Check if already connected in Firebase
         if (locationPermission.status.isGranted) {
-            locationManager.checkConnectionStatus()
+            // Verifica si el driver tiene ubicación activa en Firestore
+            val exists = withContext(Dispatchers.IO) {
+                geoProvider.checkLocationExists(idauth)
+            }
 
-            if(isConnected){
+            if (exists) {
+                // Cambia el estado de conexión y arranca el servicio
                 startLocationTrackingService()
+                locationManager.setConnectionStatus(true)
+            } else {
+                locationManager.setConnectionStatus(false)
             }
         }
     }
@@ -436,14 +394,30 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
         if (locationPermission.status.isGranted) {
             Button(
                 onClick = {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        if (!isConnected) {
-                            startLocationTrackingService()
-                            locationManager.connectDriver(context)
-                        } else {
-                            context.stopService(Intent(context, LocationTrackingService::class.java))
-                            locationManager.disconnectDriver()
+                    if (hasInternetConnection(context)) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            if (!isConnected) {
+                                // Conectar: Inicia el servicio y cambia el estado
+                                startLocationTrackingService()
+                                locationManager.setConnectionStatus(true)
+                            } else {
+                                isLoadingButton = true
+
+                                val isLocationRemoved = geoProvider.removeLocationSuspend(idauth)
+                                withContext(Dispatchers.Main) {
+                                    isLoadingButton = false // Ocultar el indicador de carga
+                                    if (isLocationRemoved) {
+                                        context.stopService(Intent(context, LocationTrackingService::class.java))
+                                        locationManager.setConnectionStatus(false)
+                                        Toast.makeText(context, "Desconectado exitosamente.", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Error al desconectar. Intenta de nuevo.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
                         }
+                    }else{
+                        Toast.makeText(context, "Sin conexión a internet.", Toast.LENGTH_SHORT).show()
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -453,9 +427,15 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
             ) {
                 Text(
                     text = if (isConnected) "Desconectar" else "Conectar",
-                    fontSize = 18.sp // Cambia el tamaño de la fuente aquí
+                    fontSize = 18.sp
                 )
             }
+
+            // Indicador de carga
+            if (isLoadingButton) {
+                LoadingModal(isLoading = isLoadingButton)
+            }
+
         }
     }
 }
@@ -466,8 +446,9 @@ class LocationTrackingService : Service() {
     private lateinit var locationCallback: LocationCallback
     private val geoProvider = GeoProvider()
     private lateinit var authProvider: String
-
     private lateinit var notificationManager: NotificationManager
+
+
 
     override fun onCreate() {
         super.onCreate()
@@ -523,13 +504,24 @@ class LocationTrackingService : Service() {
                 locationResult.lastLocation?.let { location ->
                     val latLng = LatLng(location.latitude, location.longitude)
 
-                    // Guardar ubicación en Firebase en un scope de IO
-                    CoroutineScope(Dispatchers.IO).launch {
-                        geoProvider.saveLocation(authProvider, latLng)
+                    // Verificar conexión antes de enviar ubicación
+                    if (hasInternetConnection(this@LocationTrackingService)) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                geoProvider.saveLocation(authProvider, latLng)
+                                Log.d("LocationService", "Ubicación enviada: $latLng")
+                            } catch (e: Exception) {
+                                Log.e("LocationService", "Error al enviar ubicación: ${e.localizedMessage}")
+                            }
+                        }
+                    } else {
+                        Log.w("LocationService", "Sin conexión. Ubicación no enviada.")
                     }
                 }
             }
         }
+
+
 
         // Verificar permisos antes de solicitar actualizaciones
         if (ContextCompat.checkSelfPermission(
@@ -553,8 +545,38 @@ class LocationTrackingService : Service() {
 
         // Opcional: remover la ubicación de Firebase cuando el servicio se detiene
         CoroutineScope(Dispatchers.IO).launch {
-            geoProvider.removeLocation(authProvider)
+            val isLocationRemoved = geoProvider.removeLocationSuspend(authProvider)
+            if (!isLocationRemoved) {
+                Log.e("LocationTrackingService", "Failed to remove location on service destruction")
+            }
         }
+    }
+
+
+    override fun onTaskRemoved(rootIntent: Intent) {
+        val restartServiceIntent = Intent(applicationContext, LocationTrackingService::class.java).apply {
+            putExtra("USER_ID", authProvider)
+            setPackage(packageName)
+        }
+        val restartServicePendingIntent = PendingIntent.getService(
+            applicationContext,
+            1,
+            restartServiceIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmService = applicationContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmService.set(
+            AlarmManager.RTC_WAKEUP,
+            System.currentTimeMillis() + 1000,
+            restartServicePendingIntent
+        )
+        super.onTaskRemoved(rootIntent)
     }
 }
 
+fun hasInternetConnection(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}

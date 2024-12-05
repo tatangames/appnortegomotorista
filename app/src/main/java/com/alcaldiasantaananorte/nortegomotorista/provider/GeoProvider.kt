@@ -18,8 +18,14 @@ class GeoProvider {
         geoFirestore.setLocation(idDriver, GeoPoint(position.latitude, position.longitude))
     }
 
-    fun removeLocation(idDriver: String): Task<Void> {
-        return collection.document(idDriver).delete()
+    suspend fun removeLocationSuspend(driverId: String): Boolean {
+        return try {
+            collection.document(driverId).delete().await()
+            true
+        } catch (e: Exception) {
+            Log.e("GeoProvider", "Error removing location: ${e.localizedMessage}")
+            false
+        }
     }
 
     suspend fun checkLocationExists(driverId: String): Boolean {
