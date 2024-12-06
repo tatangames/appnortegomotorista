@@ -104,6 +104,10 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 
+object LocationState {
+    var canSaveLocation: Boolean = true
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrincipalScreen(
@@ -400,6 +404,7 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
                                 // Conectar: Inicia el servicio y cambia el estado
                                 startLocationTrackingService()
                                 locationManager.setConnectionStatus(true)
+                                LocationState.canSaveLocation = true
                             } else {
                                 isLoadingButton = true
 
@@ -407,6 +412,9 @@ fun LocationTrackingScreen(authProvider: AuthProvider) {
                                 withContext(Dispatchers.Main) {
                                     isLoadingButton = false // Ocultar el indicador de carga
                                     if (isLocationRemoved) {
+                                        // borro doc firebase, asi que bloquear rapido
+                                        LocationState.canSaveLocation = false
+
                                         context.stopService(Intent(context, LocationTrackingService::class.java))
                                         locationManager.setConnectionStatus(false)
                                         Toast.makeText(context, "Desconectado exitosamente.", Toast.LENGTH_SHORT).show()
@@ -476,7 +484,7 @@ class LocationTrackingService : Service() {
         val channel = NotificationChannel(
             "LOCATION_SERVICE_CHANNEL",
             "Location Tracking",
-            NotificationManager.IMPORTANCE_LOW // Considera cambiar a IMPORTANCE_DEFAULT
+            NotificationManager.IMPORTANCE_LOW
         )
         notificationManager.createNotificationChannel(channel)
 
@@ -505,7 +513,7 @@ class LocationTrackingService : Service() {
                     val latLng = LatLng(location.latitude, location.longitude)
 
                     // Verificar conexión antes de enviar ubicación
-                    if (hasInternetConnection(this@LocationTrackingService)) {
+                    if (hasInternetConnection(this@LocationTrackingService) && LocationState.canSaveLocation) {
                         CoroutineScope(Dispatchers.IO).launch {
                             try {
                                 geoProvider.saveLocation(authProvider, latLng)
@@ -514,6 +522,7 @@ class LocationTrackingService : Service() {
                                 Log.e("LocationService", "Error al enviar ubicación: ${e.localizedMessage}")
                             }
                         }
+
                     } else {
                         Log.w("LocationService", "Sin conexión. Ubicación no enviada.")
                     }
