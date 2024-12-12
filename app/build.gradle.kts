@@ -12,8 +12,8 @@ android {
         applicationId = "com.alcaldiasantaananorte.nortegomotorista"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 3
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -121,6 +121,8 @@ dependencies {
 
     implementation("com.github.imperiumlabs:GeoFirestore-Android:v1.5.0")
     implementation("com.google.maps.android:android-maps-utils:2.3.0")
+
+    implementation("com.google.android.play:integrity:1.4.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
